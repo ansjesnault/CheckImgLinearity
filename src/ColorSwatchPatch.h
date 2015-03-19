@@ -1,8 +1,9 @@
 #pragma once
 
-#include "MunsellColor.h"
+#include <iostream>
 
 class ColorSwatch;
+class MunsellColor;
 
 class ColorSwatchPatch
 {
@@ -11,7 +12,14 @@ public:
 	virtual ~ColorSwatchPatch();
 
 public:
-	void setMunsellColor(MunsellColor munsellColor);
+	void			setReflectance(		const double reflectance);
+	double			getReflectance()	const;
+
+	void			setMunsellColor(	const MunsellColor* munsellColor);
+	MunsellColor*	getMunsellColor()	const;
+
+public:
+	friend std::ostream& operator<<(std::ostream& stream, const ColorSwatchPatch &colorSwatchPatch);
 
 private:
 	class Private;

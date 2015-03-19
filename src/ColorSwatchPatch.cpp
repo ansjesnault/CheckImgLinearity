@@ -1,14 +1,17 @@
 #include "ColorSwatchPatch.h"
+
 #include "ColorSwatch.h"
+#include "MunsellColor.h"
 
 #include <iostream>
+#include <memory>
 
 class ColorSwatchPatch::Private
 {
 public:
-	double			mReflectance;
-	MunsellColor	mMunsellColor;
-	ColorSwatch*	mColorSwatch;
+	double							mReflectance;
+	std::unique_ptr<MunsellColor>	mMunsellColor;
+	std::unique_ptr<ColorSwatch>	mColorSwatch;
 };
 
 //---------------------------------------------------------------------
@@ -16,9 +19,8 @@ public:
 
 ColorSwatchPatch::ColorSwatchPatch(ColorSwatch* colorSwatch, double reflectance) : d(new Private)
 {
-	d->mColorSwatch = colorSwatch;
+	d->mColorSwatch.reset(colorSwatch);
 	d->mReflectance = reflectance;
-	std::cout<<"d->mReflectance = "<<d->mReflectance<<std::endl;
 }
 
 ColorSwatchPatch::~ColorSwatchPatch()
@@ -28,10 +30,30 @@ ColorSwatchPatch::~ColorSwatchPatch()
 
 //---------------------------------------------------------------------
 
-void ColorSwatchPatch::setMunsellColor(MunsellColor munsellColor)
+void ColorSwatchPatch::setReflectance(double reflectance)
 {
-	d->mMunsellColor = munsellColor;
-	std::cout<<"d->mMunsellColor = "<<d->mMunsellColor<<std::endl;
+	d->mReflectance = reflectance;
+}
+
+double ColorSwatchPatch::getReflectance() const
+{
+	return d->mReflectance;
+}
+
+void ColorSwatchPatch::setMunsellColor(const MunsellColor* munsellColor)
+{
+	d->mMunsellColor.reset(const_cast<MunsellColor*>(munsellColor));
+}
+
+MunsellColor* ColorSwatchPatch::getMunsellColor() const
+{
+	return d->mMunsellColor.get();
 }
 
 //---------------------------------------------------------------------
+
+std::ostream& operator<<(std::ostream& stream, const ColorSwatchPatch &colorSwatchPatch)
+{
+	return stream	<<"[Reflectance="<<colorSwatchPatch.getReflectance()<<"]\t"
+					<<"[MunsellColor="<<*colorSwatchPatch.getMunsellColor()<<"]";
+}

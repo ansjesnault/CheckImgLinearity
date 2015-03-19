@@ -25,7 +25,8 @@ MunsellColor::MunsellColor(QString hue, float val, float chroma)
 
 MunsellColor::MunsellColor(QString formatedStr) : d(new Private)
 {
-	setFromString(formatedStr);
+	try						{ setFromString(formatedStr); }
+	catch(std::exception& e){ std::cerr<<"[Failed construct MunsellColor] "+std::string(e.what())<<std::endl; }
 }
 
 MunsellColor::MunsellColor() : d(new Private)
@@ -49,8 +50,9 @@ void MunsellColor::set(const QString &hue, const float &val, const float &chroma
 void MunsellColor::setFromString(QString formatedStr)
 {
 	QStringList halfDecomposed = formatedStr.split(QRegExp("\\s+")); // spaces separator
+
 	// we have the hue (second string contain both others within '/' separator)
-	if(halfDecomposed.size() == 2)
+	if(halfDecomposed.size() >= 2)
 	{
 		d->mHue				= halfDecomposed.first();
 		d->mLightnessVal	= halfDecomposed.at(1).split("/").first().toFloat();

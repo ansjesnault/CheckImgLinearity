@@ -65,7 +65,7 @@ void SwatchMainWindow::createConnexionsMenu()
 		{
 			d->mImg = QFileDialog::getOpenFileName(this, 
 					tr("Open Image"), 
-					QApplication::applicationDirPath()+"/rsc", 
+					QApplication::applicationDirPath(),//+"/rsc", 
 					getImgPlugin()->getImageFilterExtensions() 
 				);
 			bool status = d->mImgPlg->loadImage(d->mImg);
@@ -96,6 +96,8 @@ void SwatchMainWindow::createConnexionsMenu()
 					: 
 					tr("Color Swatch Settings NOT loaded: "))
 				+ fileName );
+
+			std::cout<<*d->mColorSwatch.get()<<std::endl;
 		}
 	);
 

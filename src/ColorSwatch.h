@@ -13,10 +13,18 @@ public:
 public:
 	bool	loadSettings(QString iniFile);
 	bool	loadImages();
-	bool	haveImage();
-	bool	haveMask();
-	QImage	getMask();
-	QImage	getQImage();
+
+public:
+	QString imageFilePathName()		const;
+	QString imageMaskFilePathName()	const;
+	bool	haveImage()				const;
+	bool	haveMask()				const;
+	QImage	getMaskImg()			const;
+	QImage	getQImage()				const;
+	QString printPatchesInfo()		const;
+
+public:
+	friend	std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch);
 
 private:
 	class Private;
