@@ -14,7 +14,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 include(CheckCXXCompilerFlag)
 get_filename_component(currentBuildTool ${CMAKE_BUILD_TOOL} NAME_WE)
 if(${currentBuildTool} MATCHES "(msdev|devenv|nmake|MSBuild)")
-    add_definitions(/W4 /DNOMINMAX)
+    add_definitions(/W3 /DNOMINMAX)
 elseif(${currentBuildTool} MATCHES "(make|gmake)")
     add_definitions(-Wall -g)
 	CHECK_CXX_COMPILER_FLAG("-std=gnu++11" COMPILER_SUPPORTS_CXX11)
@@ -113,8 +113,18 @@ set(SOURCES
 		
 	src/SwatchMainWindow.h
 	src/SwatchMainWindow.cpp
+    
     src/ImagePlugin.h
     src/ImagePlugin.cpp
+    
+    src/ColorSwatch.h
+    src/ColorSwatch.cpp
+    
+    src/ColorSwatchPatch.h
+    src/ColorSwatchPatch.cpp
+    
+    src/MunsellColor.h
+    src/MunsellColor.cpp
 )
 
 QT5_WRAP_UI(UIS_HDRS

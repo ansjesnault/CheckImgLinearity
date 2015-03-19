@@ -8,10 +8,6 @@ class ImagePlugin
 public:    
     /// Use as filter menu on Open (example: 'Image (*.png *.jpg *.bmp)')
     virtual QString getImageFilterExtensions() = 0;
-
-	/// Load the image mask in memory for next use
-	virtual bool	loadImageMask(QString filename) = 0;
-	virtual bool	isImageMaskLoaded() = 0;
     
 	/// Load the image in memory for next use
 	virtual bool	loadImage(QString filename) = 0;
@@ -32,12 +28,27 @@ public:
 public:
     /// create filter string for all formats supported by QImage
     virtual QString getImageFilterExtensions();
-
-	virtual bool	loadImageMask(QString filename);
-	virtual bool	isImageMaskLoaded();
-
 	virtual bool	loadImage(QString filename);
+	virtual QImage	toQImage();
 
+private:
+    class Private;
+    Private *d;
+};
+
+//---------------------------------------------------------------------
+//---------------------------------------------------------------------
+
+class ImagePluginOIIO : public ImagePlugin
+{
+public:
+	ImagePluginOIIO();
+	virtual ~ImagePluginOIIO();
+
+public:
+    /// create filter string for all formats supported by QImage
+    virtual QString getImageFilterExtensions();
+	virtual bool	loadImage(QString filename);
 	virtual QImage	toQImage();
 
 private:

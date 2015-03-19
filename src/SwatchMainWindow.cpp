@@ -2,8 +2,10 @@
 #include "qcustomplot.h"
 #include "ui_mainwindow.h"
 #include "ImagePlugin.h"
+#include "ColorSwatch.h"
 
 #include <QDesktopWidget>
+#include <QImage>
 #include <QMessageBox>
 
 #include <iostream>
@@ -16,12 +18,13 @@ public:
 		: mUi(std::unique_ptr<Ui::MainWindow>(new Ui::MainWindow))
         , mTitle("Swatch Munsell Neutral Value Scale test kit")
 		, mImgPlg(std::unique_ptr<ImagePluginQt>(new ImagePluginQt))
+		, mColorSwatch(std::shared_ptr<ColorSwatch>(nullptr))
     {}
     
 	std::unique_ptr<Ui::MainWindow> mUi;
     QString							mTitle;
 	std::unique_ptr<ImagePlugin>	mImgPlg;
-	QString							mMaskImg;	//path
+	std::shared_ptr<ColorSwatch>	mColorSwatch;
 	QString							mImg;		//path
 };
 
@@ -58,18 +61,6 @@ ImagePlugin* SwatchMainWindow::getImgPlugin()
 
 void SwatchMainWindow::createConnexionsMenu()
 {
-	connect(d->mUi->actionLoad_Mask, &QAction::triggered, [this]()
-		{
-			d->mMaskImg = QFileDialog::getOpenFileName(this, 
-					tr("Open Image Mask"), 
-					QApplication::applicationDirPath()+"/rsc", 
-					getImgPlugin()->getImageFilterExtensions() 
-				);
-			bool status = d->mImgPlg->loadImageMask(d->mMaskImg);
-			d->mUi->statusBar->showMessage( (status ? tr("Mask loaded: ") : tr("Mask NOT loaded: ")) + d->mMaskImg);
-		}
-	);
-
 	connect(d->mUi->action_Open, &QAction::triggered, [this]()
 		{
 			d->mImg = QFileDialog::getOpenFileName(this, 
@@ -83,11 +74,44 @@ void SwatchMainWindow::createConnexionsMenu()
 		}
 	);
 
+	connect(d->mUi->action_LoadColorSwatchSettings, &QAction::triggered, [this]()
+		{
+			QString fileName = QFileDialog::getOpenFileName(this, tr("Open Image Mask"), 
+					QApplication::applicationDirPath()+"/rsc", 
+					tr("Ini Files (*.ini)")
+				);
+
+			d->mColorSwatch.reset(new ColorSwatch(d->mImgPlg.get()));
+
+			bool isLoaded = false;
+			try							{ if( d->mColorSwatch->loadSettings(fileName) ) d->mColorSwatch->loadImages(); }
+			catch(std::exception &e)	{ std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
+
+			if(isLoaded = d->mColorSwatch->haveImage())
+				d->mUi->label->setPixmap( QPixmap::fromImage(d->mColorSwatch->getQImage() ) );
+
+			d->mUi->statusBar->showMessage( 
+				(isLoaded ? 
+					tr("Color Swatch Settings loaded [%1 mask] : ").arg( d->mColorSwatch->haveMask() ? "with" : "without" )
+					: 
+					tr("Color Swatch Settings NOT loaded: "))
+				+ fileName );
+		}
+	);
+
 	connect(d->mUi->action_Qt, &QAction::triggered, [this]()
 		{
 			d->mImgPlg.reset( new ImagePluginQt );
 			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->action_Qt->iconText(), 5000); // 5s
 			exclusiveMenuImageSDKActionCheck(d->mUi->action_Qt);
+		}
+	);
+	
+	connect(d->mUi->actionOpen_ImageIO, &QAction::triggered, [this]()
+		{
+			d->mImgPlg.reset( new ImagePluginOIIO );
+			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->actionOpen_ImageIO->iconText(), 5000); // 5s
+			exclusiveMenuImageSDKActionCheck(d->mUi->actionOpen_ImageIO);
 		}
 	);
 

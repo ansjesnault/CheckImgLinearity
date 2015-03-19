@@ -54,22 +54,23 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Open"/>
+    <addaction name="action_SaveAs"/>
+    <addaction name="action_LoadColorSwatchSettings"/>
     <addaction name="action_Close"/>
-    <addaction name="separator"/>
-    <addaction name="actionLoad_Mask"/>
    </widget>
    <widget class="QMenu" name="menu_Graph">
     <property name="title">
      <string>&amp;Graph</string>
     </property>
-    <addaction name="action_reset"/>
-    <addaction name="action_screenshot"/>
+    <addaction name="action_Reset"/>
+    <addaction name="action_PrintScreenshot"/>
    </widget>
    <widget class="QMenu" name="menuImageSDK">
     <property name="title">
      <string>ImageSDK</string>
     </property>
     <addaction name="action_Qt"/>
+    <addaction name="actionOpen_ImageIO"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuImageSDK"/>
@@ -80,9 +81,9 @@
     <string>&amp;Open</string>
    </property>
   </action>
-  <action name="action_reset">
+  <action name="action_Reset">
    <property name="text">
-    <string>&amp;reset</string>
+    <string>&amp;Reset</string>
    </property>
   </action>
   <action name="action_Close">
@@ -90,9 +91,12 @@
     <string>&amp;Close</string>
    </property>
   </action>
-  <action name="action_screenshot">
+  <action name="action_PrintScreenshot">
    <property name="text">
-    <string>&amp;screenshot</string>
+    <string>&amp;PrintScreenshot</string>
+   </property>
+   <property name="toolTip">
+    <string>PrintScreenshot</string>
    </property>
   </action>
   <action name="action_Qt">
@@ -106,9 +110,19 @@
     <string>&amp;Qt</string>
    </property>
   </action>
-  <action name="actionLoad_Mask">
+  <action name="actionOpen_ImageIO">
    <property name="text">
-    <string>Load&amp;Mask</string>
+    <string>Open&amp;ImageIO</string>
+   </property>
+  </action>
+  <action name="action_SaveAs">
+   <property name="text">
+    <string>&amp;SaveAs</string>
+   </property>
+  </action>
+  <action name="action_LoadColorSwatchSettings">
+   <property name="text">
+    <string>&amp;LoadColorSwatchSettings</string>
    </property>
   </action>
  </widget>

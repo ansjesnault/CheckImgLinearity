@@ -8,18 +8,16 @@
 #include <memory>
 
 //---------------------------------------------------------------------
+//---------   ImagePluginQt  ----------------------------------------
 //---------------------------------------------------------------------
 
 class ImagePluginQt::Private
 {
 public:
-	Private()
-		: mQimg(std::make_shared<QImage>())
-		, mQimgMask(std::unique_ptr<QImage>(new QImage))
+	Private() : mQimg(std::make_shared<QImage>())
 	{}
 public:
 	std::shared_ptr<QImage> mQimg;
-	std::unique_ptr<QImage> mQimgMask;
 };
 
 //---------------------------------------------------------------------
@@ -49,19 +47,6 @@ QString ImagePluginQt::getImageFilterExtensions()
 
 //---------------------------------------------------------------------
 
-bool ImagePluginQt::loadImageMask(QString filename)
-{
-	d->mQimgMask.reset(new QImage);
-	return d->mQimgMask->load(filename);
-}
-
-bool ImagePluginQt::isImageMaskLoaded()
-{
-	return !d->mQimgMask->isNull();
-}
-
-//---------------------------------------------------------------------
-
 bool ImagePluginQt::loadImage(QString filename)
 {
 	d->mQimg.reset(new QImage);
@@ -73,4 +58,56 @@ bool ImagePluginQt::loadImage(QString filename)
 QImage ImagePluginQt::toQImage()
 {
 	return *d->mQimg.get();
+}
+
+
+
+
+
+
+//---------------------------------------------------------------------
+//---------   ImagePluginOIIO  ----------------------------------------
+//---------------------------------------------------------------------
+
+class ImagePluginOIIO::Private
+{
+public:
+	Private()
+	{}
+public:
+};
+
+//---------------------------------------------------------------------
+
+ImagePluginOIIO::ImagePluginOIIO() 
+	: ImagePlugin()
+	, d(new Private)
+{
+
+}
+
+ImagePluginOIIO::~ImagePluginOIIO() 
+{
+	delete d;
+}
+
+//---------------------------------------------------------------------
+
+QString ImagePluginOIIO::getImageFilterExtensions()
+{
+	return QString();
+}
+
+//---------------------------------------------------------------------
+
+bool ImagePluginOIIO::loadImage(QString filename)
+{
+	return false;
+}
+
+//---------------------------------------------------------------------
+
+QImage ImagePluginOIIO::toQImage()
+{
+	return QImage();
 }
