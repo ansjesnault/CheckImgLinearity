@@ -37,6 +37,7 @@ ColorSwatch::~ColorSwatch()
 {
 	d->mPatchesList.clear();
 	delete d;
+	std::cout<<"ColorSwatch deleted"<<std::endl;
 }
 
 //---------------------------------------------------------------------

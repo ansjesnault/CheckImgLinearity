@@ -10,21 +10,21 @@ class SwatchMainWindow : public QMainWindow
 {
     Q_OBJECT
 
-public: //constructor/destructor
+public:
     explicit SwatchMainWindow(QWidget *parent = 0);
     virtual ~SwatchMainWindow();
 
-public: // overloaded
+public:
 	virtual void keyPressEvent(QKeyEvent * event);
 
-public: // intern
+public:
 	ImagePlugin*	getImgPlugin();
 
-protected: // intern
+protected:
 	void	createConnexionsMenu();
 	void	exclusiveMenuImageSDKActionCheck(QAction* actFromMenuSDK);
 
-private: // internal data
+private:
     class Private;
     Private *d;
 };

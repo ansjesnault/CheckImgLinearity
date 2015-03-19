@@ -16,7 +16,7 @@ class SwatchMainWindow::Private
 public:
     Private()
 		: mUi(std::unique_ptr<Ui::MainWindow>(new Ui::MainWindow))
-        , mTitle("Swatch Munsell Neutral Value Scale test kit")
+        , mTitle("Color Swatch Munsell Neutral Value Scale test kit")
 		, mImgPlg(std::unique_ptr<ImagePluginQt>(new ImagePluginQt))
 		, mColorSwatch(std::shared_ptr<ColorSwatch>(nullptr))
     {}
@@ -25,7 +25,7 @@ public:
     QString							mTitle;
 	std::unique_ptr<ImagePlugin>	mImgPlg;
 	std::shared_ptr<ColorSwatch>	mColorSwatch;
-	QString							mImg;		//path
+	QString							mOpenedImgFilePath;		//path
 };
 
 //---------------------------------------------------------------------
@@ -61,19 +61,27 @@ ImagePlugin* SwatchMainWindow::getImgPlugin()
 
 void SwatchMainWindow::createConnexionsMenu()
 {
+	// Open an Image
 	connect(d->mUi->action_Open, &QAction::triggered, [this]()
 		{
-			d->mImg = QFileDialog::getOpenFileName(this, 
+			d->mOpenedImgFilePath = QFileDialog::getOpenFileName(this, 
 					tr("Open Image"), 
 					QApplication::applicationDirPath(),//+"/rsc", 
 					getImgPlugin()->getImageFilterExtensions() 
 				);
-			bool status = d->mImgPlg->loadImage(d->mImg);
-			if(status) d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()) );
-			d->mUi->statusBar->showMessage( (status ? tr("Image loaded: ") : tr("Image NOT loaded: ")) + d->mImg);
+
+			bool status = d->mImgPlg->loadImage(d->mOpenedImgFilePath);
+			if(status) 
+			{
+				if(d->mColorSwatch)
+					d->mColorSwatch.reset();
+				d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()) );
+			}
+			d->mUi->statusBar->showMessage( (status ? tr("Image loaded: ") : tr("Image NOT loaded: ")) + d->mOpenedImgFilePath);
 		}
 	);
 
+	// Load ini file for the ColorSwatch test kit
 	connect(d->mUi->action_LoadColorSwatchSettings, &QAction::triggered, [this]()
 		{
 			QString fileName = QFileDialog::getOpenFileName(this, tr("Open Image Mask"), 
@@ -101,6 +109,7 @@ void SwatchMainWindow::createConnexionsMenu()
 		}
 	);
 
+	// swtich to Qt SDK image plugin
 	connect(d->mUi->action_Qt, &QAction::triggered, [this]()
 		{
 			d->mImgPlg.reset( new ImagePluginQt );
@@ -109,6 +118,7 @@ void SwatchMainWindow::createConnexionsMenu()
 		}
 	);
 	
+	// switch to OpenImageIO SDK image plugin
 	connect(d->mUi->actionOpen_ImageIO, &QAction::triggered, [this]()
 		{
 			d->mImgPlg.reset( new ImagePluginOIIO );
