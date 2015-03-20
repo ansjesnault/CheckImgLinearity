@@ -24,9 +24,13 @@ public:
     
 	std::unique_ptr<Ui::MainWindow> mUi;
     QString							mTitle;
+
 	std::unique_ptr<ImagePlugin>	mImgPlg;
+
+	QString							mLoadedSettingsFilePath;
 	std::shared_ptr<ColorSwatch>	mColorSwatch;
-	QString							mOpenedImgFilePath;		//path
+
+	QString							mOpenedImgFilePath;
 };
 
 //---------------------------------------------------------------------
@@ -60,6 +64,52 @@ ImagePlugin* SwatchMainWindow::getImgPlugin()
 
 //---------------------------------------------------------------------
 
+bool SwatchMainWindow::loadColorWatchSettings(QString iniFile)
+{
+	d->mColorSwatch.reset(new ColorSwatch(d->mImgPlg.get()));
+
+	bool isLoaded = false;
+	try							{ if( d->mColorSwatch->loadSettings(d->mLoadedSettingsFilePath) ) d->mColorSwatch->loadImages(); }
+	catch(std::exception &e)	{ std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
+
+	if(isLoaded = d->mColorSwatch->haveImage())
+		d->mUi->label->setPixmap( QPixmap::fromImage(d->mColorSwatch->getQImage() ) );
+
+	d->mUi->statusBar->showMessage( 
+		(isLoaded ? 
+			tr("Color Swatch Settings loaded [%1 mask] : ").arg( d->mColorSwatch->haveMask() ? "with" : "without" )
+			: 
+			tr("Color Swatch Settings NOT loaded: "))
+		+ d->mLoadedSettingsFilePath );
+
+	std::cout<<"\n"<<*d->mColorSwatch.get()<<"\n"<<std::endl; // verbose
+
+	return isLoaded;
+}
+
+//---------------------------------------------------------------------
+
+bool SwatchMainWindow::openImage(QString)
+{
+	bool isLoaded = d->mImgPlg->loadImage(d->mOpenedImgFilePath);
+	if(isLoaded) 
+	{
+		if(d->mColorSwatch)
+		{
+			d->mColorSwatch.reset();
+			std::cout<<"\nReset ColorWatch data structure\n"<<std::endl; // verbose
+		}
+		d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()) );
+	}
+
+	QString msg = (isLoaded ? tr("Image loaded: ") : tr("Image NOT loaded: ")) + d->mOpenedImgFilePath;
+	d->mUi->statusBar->showMessage(msg);
+	std::cout<<msg.toStdString()<<std::endl;
+	return isLoaded;
+}
+
+//---------------------------------------------------------------------
+
 void SwatchMainWindow::createConnexionsMenu()
 {
 	// Open an Image
@@ -70,43 +120,20 @@ void SwatchMainWindow::createConnexionsMenu()
 					QApplication::applicationDirPath(),//+"/rsc", 
 					d->mImgPlg->getImageFilterExtensions() 
 				);
-
-			bool status = d->mImgPlg->loadImage(d->mOpenedImgFilePath);
-			if(status) 
-			{
-				if(d->mColorSwatch)
-					d->mColorSwatch.reset();
-				d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()) );
-			}
-			d->mUi->statusBar->showMessage( (status ? tr("Image loaded: ") : tr("Image NOT loaded: ")) + d->mOpenedImgFilePath);
+			d->mLoadedSettingsFilePath = QString();
+			openImage(d->mOpenedImgFilePath);
 		}
 	);
 
 	// Load ini file for the ColorSwatch test kit
 	connect(d->mUi->action_LoadColorSwatchSettings, &QAction::triggered, [this]()
 		{
-			d->mOpenedImgFilePath = QFileDialog::getOpenFileName(this, tr("Open Image Mask"), 
+			d->mLoadedSettingsFilePath = QFileDialog::getOpenFileName(this, tr("Open test kit settings"), 
 					QApplication::applicationDirPath()+"/rsc", 
 					tr("Ini Files (*.ini)")
 				);
-
-			d->mColorSwatch.reset(new ColorSwatch(d->mImgPlg.get()));
-
-			bool isLoaded = false;
-			try							{ if( d->mColorSwatch->loadSettings(d->mOpenedImgFilePath) ) d->mColorSwatch->loadImages(); }
-			catch(std::exception &e)	{ std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
-
-			if(isLoaded = d->mColorSwatch->haveImage())
-				d->mUi->label->setPixmap( QPixmap::fromImage(d->mColorSwatch->getQImage() ) );
-
-			d->mUi->statusBar->showMessage( 
-				(isLoaded ? 
-					tr("Color Swatch Settings loaded [%1 mask] : ").arg( d->mColorSwatch->haveMask() ? "with" : "without" )
-					: 
-					tr("Color Swatch Settings NOT loaded: "))
-				+ d->mOpenedImgFilePath );
-
-			std::cout<<*d->mColorSwatch.get()<<std::endl;
+			d->mOpenedImgFilePath = QString();
+			loadColorWatchSettings(d->mLoadedSettingsFilePath);
 		}
 	);
 
@@ -114,7 +141,6 @@ void SwatchMainWindow::createConnexionsMenu()
 	connect(d->mUi->action_Qt, &QAction::triggered, [this]()
 		{
 			d->mImgPlg.reset( new ImagePluginQt );
-			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->action_Qt->iconText(), 5000); // 5s
 			switchImageSDKandReset(d->mUi->action_Qt);
 		}
 	);
@@ -123,7 +149,6 @@ void SwatchMainWindow::createConnexionsMenu()
 	connect(d->mUi->actionOpen_ImageIO, &QAction::triggered, [this]()
 		{
 			d->mImgPlg.reset( new ImagePluginOIIO );
-			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->actionOpen_ImageIO->iconText(), 5000); // 5s
 			switchImageSDKandReset(d->mUi->actionOpen_ImageIO);
 		}
 	);
@@ -134,13 +159,28 @@ void SwatchMainWindow::createConnexionsMenu()
 
 void SwatchMainWindow::switchImageSDKandReset(QAction* actFromMenuSDK)
 {
+	QString msg = tr("Use ImageSDK : ")+actFromMenuSDK->iconText();
+	d->mUi->statusBar->showMessage(msg, 5000); // 5s
+	std::cout<<msg.toStdString()<<std::endl; // verbose
 	for(QAction* act : d->mUi->menuImageSDK->actions())
+	{
+		act->setCheckable(true);
 		act->objectName() == actFromMenuSDK->objectName() ? act->setChecked(true) : act->setChecked(false);
-
-	if(d->mColorSwatch)
-		d->mColorSwatch.reset();
+	}
 
 	d->mUi->label->setPixmap(QPixmap());
+	if(!d->mLoadedSettingsFilePath.isEmpty())
+	{
+		std::cout<<"Reload ColorWatch data structure"<<std::endl; // verbose
+		loadColorWatchSettings(d->mLoadedSettingsFilePath);
+	}
+	else if(!d->mOpenedImgFilePath.isEmpty())
+	{
+		std::cout<<"Reload opened image"<<std::endl; // verbose
+		openImage(d->mOpenedImgFilePath);
+	}
+	else
+		std::cout<<"No ColorWatch and/or no image to reload"<<std::endl; // verbose
 }
 
 //---------------------------------------------------------------------

@@ -127,6 +127,9 @@ set(SOURCES
     src/MunsellColor.cpp
     
     src/PreBuildUtil.h
+    
+    src/ColorSwatchMask.h
+    src/ColorSwatchMask.cpp
 )
 
 QT5_WRAP_UI(UIS_HDRS

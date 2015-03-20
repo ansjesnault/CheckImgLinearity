@@ -54,6 +54,7 @@ MunsellColor* ColorSwatchPatch::getMunsellColor() const
 
 std::ostream& operator<<(std::ostream& stream, const ColorSwatchPatch &colorSwatchPatch)
 {
-	return stream	<<"[Reflectance="<<colorSwatchPatch.getReflectance()<<"]\t"
+	QString dbStr = QString("%1").arg(colorSwatchPatch.getReflectance(), 0, 'f', 2);
+	return stream	<<"[Reflectance="<<dbStr.toStdString()<<"]\t"
 					<<"[MunsellColor="<<*colorSwatchPatch.getMunsellColor()<<"]";
 }

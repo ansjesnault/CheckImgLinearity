@@ -20,8 +20,10 @@ public:
 	ImagePlugin*	getImgPlugin();
 
 protected:
-	void	createConnexionsMenu();
-	void	switchImageSDKandReset(QAction* actFromMenuSDK);
+	void	createConnexionsMenu	();
+	bool	loadColorWatchSettings	(QString iniFile);
+	bool	openImage				(QString);
+	void	switchImageSDKandReset	(QAction* actFromMenuSDK);
 
 private:
     class Private;

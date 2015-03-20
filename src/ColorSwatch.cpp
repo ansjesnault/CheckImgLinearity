@@ -4,12 +4,15 @@
 #include "ColorSwatchPatch.h"
 #include "MunsellColor.h"
 #include "ImagePlugin.h"
+#include "ColorSwatchMask.h"
 
 #include <QVector>
 #include <QSettings>
 #include <QVariant>
 #include <QDir>
 #include <QFile>
+#include <QImage>
+#include <QColor>
 
 #include <iostream>
 #include <memory>
@@ -21,11 +24,13 @@
 class ColorSwatch::Private
 {
 public:
+	QString						mRawFile;
 	QString						mImgFile;
-	QString						mImgMaskFile;
-	std::shared_ptr<QImage>		mImgMask;
-	QVector<ColorSwatchPatch*>	mPatchesList;
-	ImagePlugin*				mImgPlg;
+
+	std::shared_ptr<ColorSwatchMask>	mMask;
+	QVector<ColorSwatchPatch*>			mPatchesList;
+
+	ImagePlugin* mImgPlg; // not owned by this class
 };
 
 //---------------------------------------------------------------------
@@ -34,14 +39,12 @@ public:
 ColorSwatch::ColorSwatch(ImagePlugin* imgPlg) : d(new Private)
 {
 	d->mImgPlg	= imgPlg;
-	d->mImgMask = std::make_shared<QImage>();
 }
 
 ColorSwatch::~ColorSwatch()
 {
 	d->mPatchesList.clear();
 	delete d;
-	std::cout<<"ColorSwatch deleted"<<std::endl;
 }
 
 //---------------------------------------------------------------------
@@ -57,27 +60,70 @@ bool ColorSwatch::loadSettings(QString iniFile)
 	iniFilePath.cdUp();
 
 	// Get files 
-	d->mImgFile	= QString();
-	d->mImgMaskFile			= QString();
-	settings.beginGroup("files");
+	d->mRawFile		= QString();
+	d->mImgFile		= QString();
+	settings.beginGroup("colorswatch");
 	{
-		QString colorswatchFile( settings.value("colorswatch").toString() );
-		if( !QFile::exists( d->mImgFile = QDir::isRelativePath(colorswatchFile) ? iniFilePath.absoluteFilePath(colorswatchFile) : colorswatchFile ) )
-			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgFile.toStdString() );
+		QString colorswatchRawfile( settings.value("rawfile").toString() ); // [MANDATORY]
+		if( !QFile::exists( d->mRawFile = QDir::isRelativePath(colorswatchRawfile) ? iniFilePath.absoluteFilePath(colorswatchRawfile) : colorswatchRawfile ) )
+			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mRawFile.toStdString() );
 		else
 			result = true;
 
-		if(settings.childKeys().contains("mask"))
+		if(settings.childKeys().contains("file")) // [OPTIONAL]
 		{
-			QString maskFile( settings.value("mask").toString() );
-			if( !QFile::exists( d->mImgMaskFile = QDir::isRelativePath(maskFile) ? iniFilePath.absoluteFilePath(maskFile) : maskFile ) )
+			QString colorswatchFile( settings.value("file").toString() );
+			if( !QFile::exists( d->mImgFile = QDir::isRelativePath(colorswatchFile) ? iniFilePath.absoluteFilePath(colorswatchFile) : colorswatchFile ) )
 			{
-				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgMaskFile.toStdString() );
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgFile.toStdString() );
 				result = false;
 			}
 		}
 	}
 	settings.endGroup();
+
+	// Load mask info
+	d->mMask.reset();
+	if(settings.childGroups().contains("mask"))  // [OPTIONAL]
+	{
+		settings.beginGroup("mask");
+		QString maskFile( settings.value("file").toString() ); // [MANDATORY  if mask section set]
+		if( !QFile::exists( /*d->mImgMaskFile*/maskFile = QDir::isRelativePath(maskFile) ? iniFilePath.absoluteFilePath(maskFile) : maskFile ) )
+		{
+			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + /*d->mImgMaskFile*/maskFile.toStdString() );
+			result = false;
+		}
+		else
+			d->mMask.reset(new ColorSwatchMask(maskFile) );
+
+		if(settings.childKeys().contains("samplecolor") && d->mMask)  // [OPTIONAL]
+		{
+			QString colorStr = settings.value("samplecolor").toString();
+			QColor sampleColor( colorStr );
+			if(!sampleColor.isValid())
+			{
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified color is invalid : " + colorStr.toStdString() );
+				result = false;
+			}
+			else
+				d->mMask->setSampleColor(sampleColor);
+		}
+
+		if(settings.childKeys().contains("backgroundcolor") && d->mMask) // [OPTIONAL]
+		{
+			QString colorStr = settings.value("backgroundcolor").toString();
+			QColor bgColor( colorStr );
+			if(!bgColor.isValid())
+			{
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified color is invalid : " + colorStr.toStdString() );
+				result = false;
+			}
+			else
+				d->mMask->setBackgroundColor(bgColor);
+		}
+
+		settings.endGroup();
+	}
 
 	// Load all patches info, strip by strip
 	d->mPatchesList.clear();
@@ -87,8 +133,8 @@ bool ColorSwatch::loadSettings(QString iniFile)
 	{
 		settings.beginGroup(QString("strip:%1").arg(i));
 		{
-			reflectanceList = settings.value("reflectances").toList().toVector();
-			if(settings.childKeys().contains("ISCCNBS"))
+			reflectanceList = settings.value("reflectances").toList().toVector(); // [MANDATORY if strip section set]
+			if(settings.childKeys().contains("ISCCNBS")) // [OPTIONAL]
 			{
 				isccnbsList = settings.value("ISCCNBS").toStringList();
 				if(reflectanceList.size() != isccnbsList.size())
@@ -105,7 +151,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 		{
 			d->mPatchesList.append( new ColorSwatchPatch(this, db.toDouble() ) );
 			if( isccnbsList.size()-j > 0 )
-				d->mPatchesList.last()->setMunsellColor( new MunsellColor(isccnbsList.at(j++)) );
+				d->mPatchesList.last()->setMunsellColor( new MunsellColor(isccnbsList.at(j++)) ); // TODO: use QColor HSV 
 			else
 			{
 				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The ColorSwatchPatch with reflectance ["+QString("%1").arg(db.toDouble()).toStdString()+"] will not have any MunsellColor.");
@@ -124,28 +170,26 @@ bool ColorSwatch::loadImages()
 	bool result = false;
 
 	// apply settings by loading images
-	if( !d->mImgFile.isEmpty() )
-		result = d->mImgPlg->loadImage(d->mImgFile);
+	if( !d->mRawFile.isEmpty() )
+		result = d->mImgPlg->loadImage(d->mRawFile);
 
-	if( !d->mImgMaskFile.isEmpty() )
+	if(d->mMask)
 	{
-		d->mImgMask.reset(new QImage(d->mImgMaskFile) );
-		if( !d->mImgMask->isNull() )
+		if( d->mMask->loadImage() )
 		{
-			if( d->mImgPlg->size().height() != d->mImgMask->size().height()
+			if( d->mImgPlg->size().height() != d->mMask->getImage().size().height()
 				||
-				d->mImgPlg->size().width() != d->mImgMask->size().width()
-			  )
+				d->mImgPlg->size().width() != d->mMask->getImage().size().width()
+				)
 			{
+				d->mMask.reset();
 				throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
-				result = false;
 			}
 		}
 		else
 		{
-			d->mImgMask.reset();
+			d->mMask.reset();
 			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
-			result = false;
 		}
 	}
 
@@ -154,14 +198,14 @@ bool ColorSwatch::loadImages()
 
 //---------------------------------------------------------------------
 
+QString ColorSwatch::rawFilePathName() const
+{
+	return d->mRawFile;
+}
+
 QString ColorSwatch::imageFilePathName() const
 {
 	return d->mImgFile;
-}
-
-QString ColorSwatch::imageMaskFilePathName() const
-{
-	return d->mImgMaskFile;
 }
 
 bool ColorSwatch::haveImage() const
@@ -176,19 +220,27 @@ QImage ColorSwatch::getQImage() const
 
 bool ColorSwatch::haveMask() const
 {
-	return !d->mImgMask->isNull();
+	return d->mMask;
 }
 
 QImage ColorSwatch::getMaskImg() const
 {
-	return *d->mImgMask.get();
+	return d->mMask->getImage();
 }
 
 QString ColorSwatch::printPatchesInfo() const
 {
 	std::stringstream ss;
+	ss<<"["<<d->mPatchesList.size()<<"] Patches:\t\n";
 	for(ColorSwatchPatch* sample : d->mPatchesList)
-		ss<<"Patch:     " << *sample <<"\n";
+		ss<<"\tPatch: " << *sample <<"\n";
+	return QString(ss.str().c_str());
+}
+
+QString ColorSwatch::printMaskInfo() const
+{
+	std::stringstream ss;
+	d->mMask ? ss<<"[X] Mask :\n"<<*d->mMask.get() : ss<<"[-] Mask :\n";
 	return QString(ss.str().c_str());
 }
 
@@ -197,8 +249,17 @@ QString ColorSwatch::printPatchesInfo() const
 std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch)
 {
 	return stream<<"ColorSwatch:\n"
-		<<"Image:     "	<<colorSwatch.imageFilePathName().toStdString()<<"\n"
-		<<"ImageMask: "	<<colorSwatch.imageMaskFilePathName().toStdString()<<"\n"
+		<<"["<<(colorSwatch.imageFilePathName().isEmpty()?"-":"X")<<"] Raw image:\t"			<<colorSwatch.imageFilePathName().toStdString()<<"\n"
+		<<"["<<(colorSwatch.rawFilePathName().isEmpty()?"-":"X")	<<"] Other format image:\t"	<<colorSwatch.rawFilePathName().toStdString()
+		<<colorSwatch.printMaskInfo().toStdString()
 		<<colorSwatch.printPatchesInfo().toStdString();
-		
 }
+
+//---------------------------------------------------------------------
+
+void ColorSwatch::fillPatchesPixelsFromMask()
+{
+
+}
+
+//---------------------------------------------------------------------
