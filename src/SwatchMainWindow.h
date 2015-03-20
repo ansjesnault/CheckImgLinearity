@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <QMainWindow>
@@ -22,7 +21,7 @@ public:
 
 protected:
 	void	createConnexionsMenu();
-	void	exclusiveMenuImageSDKActionCheck(QAction* actFromMenuSDK);
+	void	switchImageSDKandReset(QAction* actFromMenuSDK);
 
 private:
     class Private;

@@ -60,6 +60,13 @@ QImage ImagePluginQt::toQImage()
 	return *d->mQimg.get();
 }
 
+//---------------------------------------------------------------------
+
+QSize ImagePluginQt::size()
+{
+	return d->mQimg ? d->mQimg->size() : QSize();
+}
+
 
 
 
@@ -92,22 +99,3 @@ ImagePluginOIIO::~ImagePluginOIIO()
 }
 
 //---------------------------------------------------------------------
-
-QString ImagePluginOIIO::getImageFilterExtensions()
-{
-	return QString();
-}
-
-//---------------------------------------------------------------------
-
-bool ImagePluginOIIO::loadImage(QString filename)
-{
-	return false;
-}
-
-//---------------------------------------------------------------------
-
-QImage ImagePluginOIIO::toQImage()
-{
-	return QImage();
-}

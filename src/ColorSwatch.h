@@ -11,7 +11,10 @@ public:
 	virtual ~ColorSwatch();
 
 public:
+	/// return true or otherwise throw an exception
 	bool	loadSettings(QString iniFile);
+
+	/// return true or otherwise throw an exception
 	bool	loadImages();
 
 public:

@@ -1,4 +1,6 @@
 #include "ColorSwatch.h"
+
+#include "PreBuildUtil.h"
 #include "ColorSwatchPatch.h"
 #include "MunsellColor.h"
 #include "ImagePlugin.h"
@@ -13,6 +15,8 @@
 #include <memory>
 #include <stdexcept>
 #include <sstream>
+#include <cstring>
+
 
 class ColorSwatch::Private
 {
@@ -45,7 +49,7 @@ ColorSwatch::~ColorSwatch()
 bool ColorSwatch::loadSettings(QString iniFile)
 {
 	bool result = false;
-
+	
 	QSettings settings(iniFile, QSettings::Format::IniFormat);
 
 	// we assume iniFile is absolute file path
@@ -59,7 +63,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 	{
 		QString colorswatchFile( settings.value("colorswatch").toString() );
 		if( !QFile::exists( d->mImgFile = QDir::isRelativePath(colorswatchFile) ? iniFilePath.absoluteFilePath(colorswatchFile) : colorswatchFile ) )
-			throw std::invalid_argument("[ColorSwatch::loadSettings] The specified file does not exist : " + d->mImgFile.toStdString() );
+			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgFile.toStdString() );
 		else
 			result = true;
 
@@ -68,7 +72,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 			QString maskFile( settings.value("mask").toString() );
 			if( !QFile::exists( d->mImgMaskFile = QDir::isRelativePath(maskFile) ? iniFilePath.absoluteFilePath(maskFile) : maskFile ) )
 			{
-				throw std::invalid_argument("[ColorSwatch::loadSettings] The specified file does not exist : " + d->mImgMaskFile.toStdString() );
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgMaskFile.toStdString() );
 				result = false;
 			}
 		}
@@ -89,7 +93,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 				isccnbsList = settings.value("ISCCNBS").toStringList();
 				if(reflectanceList.size() != isccnbsList.size())
 				{
-					throw std::invalid_argument("[ColorSwatch::loadSettings] "+QString("strip:%1").arg(i).toStdString()+" section have not same reflectances and ISCC–NBS number count.");
+					throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] "+QString("strip:%1").arg(i).toStdString()+" section have not same reflectances and ISCC–NBS number count.");
 					result = false;
 				}
 			}
@@ -104,7 +108,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 				d->mPatchesList.last()->setMunsellColor( new MunsellColor(isccnbsList.at(j++)) );
 			else
 			{
-				throw std::invalid_argument("[ColorSwatch::loadSettings] The ColorSwatchPatch with reflectance ["+QString("%1").arg(db.toDouble()).toStdString()+"] will not have any MunsellColor.");
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The ColorSwatchPatch with reflectance ["+QString("%1").arg(db.toDouble()).toStdString()+"] will not have any MunsellColor.");
 				result = false;
 			}
 		}
@@ -124,7 +128,26 @@ bool ColorSwatch::loadImages()
 		result = d->mImgPlg->loadImage(d->mImgFile);
 
 	if( !d->mImgMaskFile.isEmpty() )
+	{
 		d->mImgMask.reset(new QImage(d->mImgMaskFile) );
+		if( !d->mImgMask->isNull() )
+		{
+			if( d->mImgPlg->size().height() != d->mImgMask->size().height()
+				||
+				d->mImgPlg->size().width() != d->mImgMask->size().width()
+			  )
+			{
+				throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
+				result = false;
+			}
+		}
+		else
+		{
+			d->mImgMask.reset();
+			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
+			result = false;
+		}
+	}
 
 	return result;
 }

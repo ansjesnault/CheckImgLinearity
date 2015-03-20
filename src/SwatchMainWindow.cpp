@@ -3,6 +3,7 @@
 #include "ui_mainwindow.h"
 #include "ImagePlugin.h"
 #include "ColorSwatch.h"
+#include "PreBuildUtil.h"
 
 #include <QDesktopWidget>
 #include <QImage>
@@ -67,7 +68,7 @@ void SwatchMainWindow::createConnexionsMenu()
 			d->mOpenedImgFilePath = QFileDialog::getOpenFileName(this, 
 					tr("Open Image"), 
 					QApplication::applicationDirPath(),//+"/rsc", 
-					getImgPlugin()->getImageFilterExtensions() 
+					d->mImgPlg->getImageFilterExtensions() 
 				);
 
 			bool status = d->mImgPlg->loadImage(d->mOpenedImgFilePath);
@@ -84,7 +85,7 @@ void SwatchMainWindow::createConnexionsMenu()
 	// Load ini file for the ColorSwatch test kit
 	connect(d->mUi->action_LoadColorSwatchSettings, &QAction::triggered, [this]()
 		{
-			QString fileName = QFileDialog::getOpenFileName(this, tr("Open Image Mask"), 
+			d->mOpenedImgFilePath = QFileDialog::getOpenFileName(this, tr("Open Image Mask"), 
 					QApplication::applicationDirPath()+"/rsc", 
 					tr("Ini Files (*.ini)")
 				);
@@ -92,7 +93,7 @@ void SwatchMainWindow::createConnexionsMenu()
 			d->mColorSwatch.reset(new ColorSwatch(d->mImgPlg.get()));
 
 			bool isLoaded = false;
-			try							{ if( d->mColorSwatch->loadSettings(fileName) ) d->mColorSwatch->loadImages(); }
+			try							{ if( d->mColorSwatch->loadSettings(d->mOpenedImgFilePath) ) d->mColorSwatch->loadImages(); }
 			catch(std::exception &e)	{ std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
 
 			if(isLoaded = d->mColorSwatch->haveImage())
@@ -103,7 +104,7 @@ void SwatchMainWindow::createConnexionsMenu()
 					tr("Color Swatch Settings loaded [%1 mask] : ").arg( d->mColorSwatch->haveMask() ? "with" : "without" )
 					: 
 					tr("Color Swatch Settings NOT loaded: "))
-				+ fileName );
+				+ d->mOpenedImgFilePath );
 
 			std::cout<<*d->mColorSwatch.get()<<std::endl;
 		}
@@ -114,7 +115,7 @@ void SwatchMainWindow::createConnexionsMenu()
 		{
 			d->mImgPlg.reset( new ImagePluginQt );
 			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->action_Qt->iconText(), 5000); // 5s
-			exclusiveMenuImageSDKActionCheck(d->mUi->action_Qt);
+			switchImageSDKandReset(d->mUi->action_Qt);
 		}
 	);
 	
@@ -123,7 +124,7 @@ void SwatchMainWindow::createConnexionsMenu()
 		{
 			d->mImgPlg.reset( new ImagePluginOIIO );
 			d->mUi->statusBar->showMessage(tr("Reset ImageSDK to : ")+d->mUi->actionOpen_ImageIO->iconText(), 5000); // 5s
-			exclusiveMenuImageSDKActionCheck(d->mUi->actionOpen_ImageIO);
+			switchImageSDKandReset(d->mUi->actionOpen_ImageIO);
 		}
 	);
 
@@ -131,10 +132,15 @@ void SwatchMainWindow::createConnexionsMenu()
 
 //---------------------------------------------------------------------
 
-void SwatchMainWindow::exclusiveMenuImageSDKActionCheck(QAction* actFromMenuSDK)
+void SwatchMainWindow::switchImageSDKandReset(QAction* actFromMenuSDK)
 {
 	for(QAction* act : d->mUi->menuImageSDK->actions())
 		act->objectName() == actFromMenuSDK->objectName() ? act->setChecked(true) : act->setChecked(false);
+
+	if(d->mColorSwatch)
+		d->mColorSwatch.reset();
+
+	d->mUi->label->setPixmap(QPixmap());
 }
 
 //---------------------------------------------------------------------

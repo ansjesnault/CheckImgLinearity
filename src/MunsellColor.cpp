@@ -1,8 +1,9 @@
 #include "MunsellColor.h"
-
-#include <stdexcept>
+#include "PreBuildUtil.h"
 
 #include <QStringList>
+
+#include <stdexcept>
 
 class MunsellColor::Private
 {
@@ -61,7 +62,7 @@ void MunsellColor::setFromString(QString formatedStr)
 	else
 	{
 		set(QString(), 0, 0);
-		throw std::invalid_argument("[MunsellColor::setFromString] bad string format :"+formatedStr.toStdString());
+		throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] bad string format :"+formatedStr.toStdString());
 	}
 }
 
