@@ -13,6 +13,8 @@
 #include <QFile>
 #include <QImage>
 #include <QColor>
+#include <QRgb>
+#include <QMap>
 
 #include <iostream>
 #include <memory>
@@ -24,8 +26,8 @@
 class ColorSwatch::Private
 {
 public:
-	QString						mRawFile;
-	QString						mImgFile;
+	QString	mRawFile;
+	QString	mImgFile;
 
 	std::shared_ptr<ColorSwatchMask>	mMask;
 	QVector<ColorSwatchPatch*>			mPatchesList;
@@ -95,19 +97,6 @@ bool ColorSwatch::loadSettings(QString iniFile)
 		}
 		else
 			d->mMask.reset(new ColorSwatchMask(maskFile) );
-
-		if(settings.childKeys().contains("samplecolor") && d->mMask)  // [OPTIONAL]
-		{
-			QString colorStr = settings.value("samplecolor").toString();
-			QColor sampleColor( colorStr );
-			if(!sampleColor.isValid())
-			{
-				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified color is invalid : " + colorStr.toStdString() );
-				result = false;
-			}
-			else
-				d->mMask->setSampleColor(sampleColor);
-		}
 
 		if(settings.childKeys().contains("backgroundcolor") && d->mMask) // [OPTIONAL]
 		{
@@ -180,17 +169,18 @@ bool ColorSwatch::loadImages()
 			if( d->mImgPlg->size().height() != d->mMask->getImage().size().height()
 				||
 				d->mImgPlg->size().width() != d->mMask->getImage().size().width()
-				)
-			{
-				d->mMask.reset();
+			)
 				throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
-			}
+			else if(result)
+				d->mMask->applyMask( &d->mImgPlg->toQImage() );
+			else
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask loaded but not applied as image file not loaded!");
 		}
 		else
-		{
-			d->mMask.reset();
 			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
-		}
+
+		if(!result)
+			d->mMask.reset();
 	}
 
 	return result;
@@ -257,9 +247,69 @@ std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch)
 
 //---------------------------------------------------------------------
 
-void ColorSwatch::fillPatchesPixelsFromMask()
+bool ColorSwatch::fillPatchesPixelsFromMask()
 {
+	bool result = false;
+	if(!d->mMask)
+		throw std::domain_error("["+FILE_LINE_FUNC_STR+"] Cannot fill patches without a valid loaded mask!");
+	
+	// try to auto detect background color
+	if( !d->mMask->haveBackgroundColor() )
+	{
+		QMap<QRgb, int> clrMap;
+		for ( int row = 0; row < d->mMask->getImage().height(); row++ )
+			for ( int col = 0; col < d->mMask->getImage().width(); col++ )
+				if(d->mMask->getImage().valid(col,row))
+					clrMap[d->mMask->getImage().pixel(col, row)]++;
 
+		int	maxRgbCount = 0;
+		for(auto& rgba : clrMap.keys())
+			maxRgbCount = maxRgbCount < clrMap.value(rgba) ? clrMap.value(rgba) : maxRgbCount;
+
+		QRgb maxRgba = clrMap.key(maxRgbCount);
+		std::cout<<"Detect background : ("<<qRed(maxRgba)<<" , "<<qGreen(maxRgba)<<" , "<<qBlue(maxRgba)<<")"<<std::endl;
+		d->mMask->setBackgroundColor( QColor(maxRgba) );
+	}
+
+	QRgb	bgRgb = d->mMask->getBackgroundColor().rgb();
+	QImage	mask = d->mMask->getImage();
+	QVector<QImage> patches;
+	unsigned int i = 0;
+	for( int row = 0; row < mask.height(); row++ )
+	{
+		for( int col = 0; col < mask.width(); col++ )
+		{
+			if( mask.valid(col, row) )
+			{
+				QRgb rgba = mask.pixel(col, row);
+				if( rgba != bgRgb )
+				{
+					// extract a square region to create patch
+					int maxRow = row;
+					int maxCol = col;
+					while ( mask.pixel(col		, maxRow) != bgRgb ) { maxRow++; }
+					while ( mask.pixel(maxCol	, row	) != bgRgb ) { maxCol++; }
+					QImage patch( maxCol-col, maxRow-row,QImage::Format_RGB32);
+					for(int r=0, localRow = row; localRow < maxRow; localRow++, r++ )
+					{
+						for(int c=0, localCol = col; localCol < maxCol; localCol++, c++ )
+						{
+							QRgb val = mask.pixel(localCol, localRow);
+							patch.setPixel(c,r,val);
+							mask.setPixel(localCol, localRow, bgRgb);
+						}
+					}
+					patches.push_back(patch);
+					QString patchFile = QString("patch_%1.png").arg(i++);
+					patch.save(patchFile);
+					std::cout<<"Save "<<patchFile.toStdString()<<" ["<<patch.width()<<"x"<<patch.height()<<"]";
+					std::cout<<std::endl;
+				}
+			}
+		}
+	}
+	
+	return result;
 }
 
 //---------------------------------------------------------------------

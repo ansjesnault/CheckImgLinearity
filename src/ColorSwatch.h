@@ -15,14 +15,14 @@ public:
 	enum class MASK_OPERATION {LESS, LESS_EQUAL, GREATER, GREATER_EQUAL};
 
 public:
-	/// return true or otherwise throw an exception
-	bool	loadSettings(QString iniFile);
+	/// return true or otherwise false and may throw an exception
+	bool loadSettings(QString iniFile);
 
-	/// return true or otherwise throw an exception
-	bool	loadImages();
+	/// return true or otherwise false and may throw an exception
+	bool loadImages();
 
 	/// 
-	void	fillPatchesPixelsFromMask();
+	bool fillPatchesPixelsFromMask();
 
 public:
 	QString rawFilePathName()		const;

@@ -24,6 +24,7 @@ protected:
 	bool	loadColorWatchSettings	(QString iniFile);
 	bool	openImage				(QString);
 	void	switchImageSDKandReset	(QAction* actFromMenuSDK);
+	void	createGraph				();
 
 private:
     class Private;

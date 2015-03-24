@@ -69,11 +69,21 @@ bool SwatchMainWindow::loadColorWatchSettings(QString iniFile)
 	d->mColorSwatch.reset(new ColorSwatch(d->mImgPlg.get()));
 
 	bool isLoaded = false;
-	try							{ if( d->mColorSwatch->loadSettings(d->mLoadedSettingsFilePath) ) d->mColorSwatch->loadImages(); }
-	catch(std::exception &e)	{ std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
+	try							
+	{ 
+		if( d->mColorSwatch->loadSettings(d->mLoadedSettingsFilePath) )
+		{
+			if( d->mColorSwatch->loadImages() )
+			{
+				d->mColorSwatch->fillPatchesPixelsFromMask();
+				createGraph();
+			}
+		}
+	}
+	catch(std::exception &e) { std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
 
 	if(isLoaded = d->mColorSwatch->haveImage())
-		d->mUi->label->setPixmap( QPixmap::fromImage(d->mColorSwatch->getQImage() ) );
+		d->mUi->label->setPixmap( QPixmap::fromImage( d->mColorSwatch->getQImage() ).scaled(d->mUi->label->size(),Qt::KeepAspectRatio) );
 
 	d->mUi->statusBar->showMessage( 
 		(isLoaded ? 
@@ -99,7 +109,7 @@ bool SwatchMainWindow::openImage(QString)
 			d->mColorSwatch.reset();
 			std::cout<<"\nReset ColorWatch data structure\n"<<std::endl; // verbose
 		}
-		d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()) );
+		d->mUi->label->setPixmap( QPixmap::fromImage(d->mImgPlg->toQImage()).scaled(d->mUi->label->size(),Qt::KeepAspectRatio) );
 	}
 
 	QString msg = (isLoaded ? tr("Image loaded: ") : tr("Image NOT loaded: ")) + d->mOpenedImgFilePath;
@@ -194,6 +204,13 @@ void SwatchMainWindow::keyPressEvent(QKeyEvent * event)
 		break;
 	}
 	QMainWindow::keyPressEvent(event);
+}
+
+//---------------------------------------------------------------------
+
+void SwatchMainWindow::createGraph()
+{
+
 }
 
 //---------------------------------------------------------------------

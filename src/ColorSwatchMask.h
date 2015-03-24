@@ -15,16 +15,16 @@ public:
 
 public:
 	void setImageFilePathName	(const QString	&filePathName);
-	void setSampleColor			(const QColor	&color);
 	void setBackgroundColor		(const QColor	&color);
 
 	QString getImageFilePathName()	const;
-	QColor	getSampleColor()		const;
+	bool	haveBackgroundColor()	const;
 	QColor	getBackgroundColor()	const;
 	QImage	getImage()				const;
 
 public:
-	bool loadImage();
+	bool	loadImage();
+	bool	applyMask(QImage* srcImg);
 
 public:
 	friend std::ostream& operator<<(std::ostream& stream, const ColorSwatchMask &mask);
