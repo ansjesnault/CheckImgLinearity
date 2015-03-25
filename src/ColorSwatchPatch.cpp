@@ -6,12 +6,17 @@
 #include <iostream>
 #include <memory>
 
+#include <QImage>
+
 class ColorSwatchPatch::Private
 {
 public:
 	double							mReflectance;
 	std::unique_ptr<MunsellColor>	mMunsellColor;
 	std::unique_ptr<ColorSwatch>	mColorSwatch;
+	std::unique_ptr<QImage>			mImg;
+	QRgb							mAverageRGB;
+	int								mRelPixXbegin, mRelPixYbegin; ///< pixel coord of origin of this patch (upper right) but in the image pixel coord system
 };
 
 //---------------------------------------------------------------------
@@ -48,6 +53,13 @@ void ColorSwatchPatch::setMunsellColor(const MunsellColor* munsellColor)
 MunsellColor* ColorSwatchPatch::getMunsellColor() const
 {
 	return d->mMunsellColor.get();
+}
+
+void ColorSwatchPatch::setImage(QImage* img, int orgPixXrelFromMask, int orgPixYrelFromMask)
+{
+	d->mImg.reset(new QImage(*img));
+	d->mRelPixXbegin = orgPixXrelFromMask;
+	d->mRelPixYbegin = orgPixYrelFromMask;
 }
 
 //---------------------------------------------------------------------

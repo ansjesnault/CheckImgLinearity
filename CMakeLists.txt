@@ -103,8 +103,8 @@ endif()
 set(SOURCES 
 #    .h
 #    .cpp
-	src/mainwindow.h
-	src/mainwindow.cpp
+#	src/mainwindow.h
+#	src/mainwindow.cpp
 	
 	src/qcustomplot.h
 	src/qcustomplot.cpp

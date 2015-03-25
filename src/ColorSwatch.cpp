@@ -17,10 +17,10 @@
 #include <QMap>
 
 #include <iostream>
-#include <memory>
-#include <stdexcept>
-#include <sstream>
-#include <cstring>
+#include <memory>		// shared_ptr ...
+#include <stdexcept>	// exceptions ...
+#include <sstream>		// stringstream ...
+#include <algorithm>	//std::sort ...
 
 
 class ColorSwatch::Private
@@ -253,27 +253,40 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 	if(!d->mMask)
 		throw std::domain_error("["+FILE_LINE_FUNC_STR+"] Cannot fill patches without a valid loaded mask!");
 	
+
 	// try to auto detect background color
-	if( !d->mMask->haveBackgroundColor() )
-	{
-		QMap<QRgb, int> clrMap;
-		for ( int row = 0; row < d->mMask->getImage().height(); row++ )
-			for ( int col = 0; col < d->mMask->getImage().width(); col++ )
-				if(d->mMask->getImage().valid(col,row))
-					clrMap[d->mMask->getImage().pixel(col, row)]++;
+	QMap<QRgb, int> clrMap;
+	for ( int row = 0; row < d->mMask->getImage().height(); row++ )
+		for ( int col = 0; col < d->mMask->getImage().width(); col++ )
+			if(d->mMask->getImage().valid(col,row))
+				clrMap[d->mMask->getImage().pixel(col, row)]++;
 
-		int	maxRgbCount = 0;
-		for(auto& rgba : clrMap.keys())
-			maxRgbCount = maxRgbCount < clrMap.value(rgba) ? clrMap.value(rgba) : maxRgbCount;
+	int	maxRgbCount = 0;
+	for(auto& rgba : clrMap.keys())
+		maxRgbCount = maxRgbCount < clrMap.value(rgba) ? clrMap.value(rgba) : maxRgbCount;
 
-		QRgb maxRgba = clrMap.key(maxRgbCount);
-		std::cout<<"Detect background : ("<<qRed(maxRgba)<<" , "<<qGreen(maxRgba)<<" , "<<qBlue(maxRgba)<<")"<<std::endl;
+	QRgb maxRgba = clrMap.key(maxRgbCount);
+	if( !d->mMask->haveBackgroundColor() )	
 		d->mMask->setBackgroundColor( QColor(maxRgba) );
-	}
+	else if(QRgb curBgRgba = d->mMask->getBackgroundColor().rgba() != maxRgba)
+		std::cerr<<"WARNING: ["+FILE_LINE_FUNC_STR+"] Dectected background ("<<qRed(maxRgba)<<","<<qGreen(maxRgba)<<","<<qBlue(maxRgba)<<","<<qAlpha(maxRgba)<<")"
+				<<"	is not the one provided in settings [default use] ("<<qRed(curBgRgba)<<","<<qGreen(curBgRgba)<<","<<qBlue(curBgRgba)<<","<<qAlpha(curBgRgba)<<")"
+				<<std::endl;
 
-	QRgb	bgRgb = d->mMask->getBackgroundColor().rgb();
-	QImage	mask = d->mMask->getImage();
-	QVector<QImage> patches;
+	// try to extract sample patches pixels
+	class Patch
+	{
+	public:
+		Patch(QImage* img, QRgb av, int relX, int relY)
+			: mImg(img), mAverage(av), mRelPixXbegin(relX), mRelPixYbegin(relY)
+		{}
+		QImage* mImg;
+		QRgb	mAverage;
+		int		mRelPixXbegin , mRelPixYbegin;
+	};
+	QVector<Patch*> patches;
+	QRgb			bgRgb = d->mMask->getBackgroundColor().rgba();
+	QImage			mask = d->mMask->getImage();
 	unsigned int i = 0;
 	for( int row = 0; row < mask.height(); row++ )
 	{
@@ -289,27 +302,55 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 					int maxCol = col;
 					while ( mask.pixel(col		, maxRow) != bgRgb ) { maxRow++; }
 					while ( mask.pixel(maxCol	, row	) != bgRgb ) { maxCol++; }
-					QImage patch( maxCol-col, maxRow-row,QImage::Format_RGB32);
+					QImage* patchImg = new QImage( maxCol-col, maxRow-row,QImage::Format_RGB32);
+					int somRed = 0, somGreen = 0, somBlue = 0, somAlpha = 0, nbPixels = 0;
 					for(int r=0, localRow = row; localRow < maxRow; localRow++, r++ )
 					{
 						for(int c=0, localCol = col; localCol < maxCol; localCol++, c++ )
 						{
 							QRgb val = mask.pixel(localCol, localRow);
-							patch.setPixel(c,r,val);
-							mask.setPixel(localCol, localRow, bgRgb);
+							if( val != bgRgb ) // in case the mask is not really an aligned square
+							{
+								somRed	 += qRed(val);
+								somGreen += qGreen(val);
+								somBlue	 += qBlue(val);
+								somAlpha += qAlpha(val);
+								nbPixels ++;
+								patchImg->setPixel(c,r,val);
+								mask.setPixel(localCol, localRow, bgRgb);
+							}
 						}
 					}
-					patches.push_back(patch);
-					QString patchFile = QString("patch_%1.png").arg(i++);
-					patch.save(patchFile);
-					std::cout<<"Save "<<patchFile.toStdString()<<" ["<<patch.width()<<"x"<<patch.height()<<"]";
-					std::cout<<std::endl;
+					QRgb patchRgbaAverage = qRgba(somRed/nbPixels, somGreen/nbPixels, somBlue/nbPixels, somAlpha/nbPixels);
+					patches.push_back( new Patch(patchImg, patchRgbaAverage, col, row) );
+
+					/*Uncomment to save patch QImage in order of detection*/
+					//QString patchFile = QString("patch_%1.png").arg(i++);
+					//patchImg->save(patchFile);
+					//std::cout<<"Save "<<patchFile.toStdString()<<" ["<<patchImg->width()<<"x"<<patchImg->height()<<"]";
+					//std::cout<<std::endl;
 				}
 			}
 		}
 	}
+
+
+	// try to relie list of the local mask patches with the ColorSwatchPatch list
+	std::sort(patches.begin(), patches.end(), [](Patch* lhs, Patch* rhs) 
+		{
+			return	( qRed(lhs->mAverage) + qGreen(lhs->mAverage) + qBlue(lhs->mAverage) + qAlpha(lhs->mAverage) )
+					< ( qRed(rhs->mAverage) + qGreen(rhs->mAverage) + qBlue(rhs->mAverage) + qAlpha(rhs->mAverage) );
+		} ); // from black (0) to white (255)
+
+	if(patches.size() != d->mPatchesList.size())
+		throw std::length_error("["+FILE_LINE_FUNC_STR+"] Detected patches are not equal to number of provided patches reflectance ("+(patches.size() < d->mPatchesList.size() ? "<)" : ">)") );
+
+	for(int i=0; i<patches.size(); i++)
+		if(d->mPatchesList.size() >= i)
+			d->mPatchesList[i]->setImage(patches[i]->mImg, patches[i]->mRelPixXbegin, patches[i]->mRelPixYbegin);
 	
-	return result;
+	patches.clear();
+	return result = true;
 }
 
 //---------------------------------------------------------------------
