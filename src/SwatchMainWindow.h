@@ -14,7 +14,8 @@ public:
     virtual ~SwatchMainWindow();
 
 public:
-	virtual void keyPressEvent(QKeyEvent * event);
+	virtual void keyPressEvent	(QKeyEvent	  * event);
+	virtual void resizeEvent	(QResizeEvent * event);
 
 public:
 	ImagePlugin*	getImgPlugin();

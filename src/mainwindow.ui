@@ -18,7 +18,7 @@
     <item>
      <widget class="QLabel" name="label">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -27,7 +27,7 @@
        <string/>
       </property>
       <property name="scaledContents">
-       <bool>true</bool>
+       <bool>false</bool>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
