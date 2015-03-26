@@ -80,7 +80,12 @@ bool SwatchMainWindow::loadColorWatchSettings(QString iniFile)
 			if( d->mColorSwatch->loadImages() )
 			{
 				d->mColorSwatch->fillPatchesPixelsFromMask();
-				createGraph();
+				createGraph(d->mColorSwatch->getGraphData(ColorSwatch::DATA::REF),
+					d->mColorSwatch->getGraphData(ColorSwatch::DATA::R),
+					d->mColorSwatch->getGraphData(ColorSwatch::DATA::G),
+					d->mColorSwatch->getGraphData(ColorSwatch::DATA::B),
+					d->mColorSwatch->getGraphData(ColorSwatch::DATA::A)
+				);
 			}
 		}
 	}
@@ -230,9 +235,57 @@ void SwatchMainWindow::resizeEvent(QResizeEvent * event)
 
 //---------------------------------------------------------------------
 
-void SwatchMainWindow::createGraph()
+void SwatchMainWindow::createGraph(
+	GraphData2D graphRef,
+	GraphData2D graphR,
+	GraphData2D graphG,
+	GraphData2D graphB,
+	GraphData2D graphA
+	)
 {
+	d->mUi->customPlot->setWindowTitle("Check pixels linearity");
 
+	d->mUi->customPlot->xAxis->setLabel("Known patches reflectances %");
+	d->mUi->customPlot->xAxis->setRange(0.0, 100.0);
+
+	d->mUi->customPlot->yAxis->setLabel("Float average patches channel");
+	d->mUi->customPlot->yAxis->setRange(0.0, 1.0);
+
+	d->mUi->customPlot->addGraph();
+	d->mUi->customPlot->graph(0)->setPen(QPen(Qt::lightGray));
+	d->mUi->customPlot->graph(0)->setName("reference");
+	d->mUi->customPlot->graph(0)->setData(graphRef.first, graphRef.second);
+	
+	d->mUi->customPlot->addGraph();
+	d->mUi->customPlot->graph(1)->setPen(QPen(Qt::red));
+	d->mUi->customPlot->graph(1)->setName("red channel");
+	d->mUi->customPlot->graph(1)->setData(graphR.first	, graphR.second);
+
+	d->mUi->customPlot->addGraph();
+	d->mUi->customPlot->graph(2)->setPen(QPen(Qt::green));
+	d->mUi->customPlot->graph(2)->setName("green channel");
+	d->mUi->customPlot->graph(2)->setData(graphG.first	, graphG.second);
+
+	d->mUi->customPlot->addGraph();
+	d->mUi->customPlot->graph(3)->setPen(QPen(Qt::blue));
+	d->mUi->customPlot->graph(3)->setName("blue channel");
+	d->mUi->customPlot->graph(3)->setData(graphB.first	, graphB.second);
+
+	d->mUi->customPlot->addGraph();
+	d->mUi->customPlot->graph(4)->setPen(QPen(Qt::yellow));
+	d->mUi->customPlot->graph(4)->setName("alpha channel");
+	d->mUi->customPlot->graph(4)->setData(graphA.first, graphA.second);
+
+	d->mUi->customPlot->legend->setVisible(true);
+	d->mUi->customPlot->legend->removeAt(0);
+	d->mUi->customPlot->rescaleAxes();
+
+	// make left and bottom axes always transfer their ranges to right and top axes:
+	connect(d->mUi->customPlot->xAxis, SIGNAL(rangeChanged(QCPRange)), d->mUi->customPlot->xAxis2, SLOT(setRange(QCPRange)));
+	connect(d->mUi->customPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), d->mUi->customPlot->yAxis2, SLOT(setRange(QCPRange)));
+
+	d->mUi->customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+	d->mUi->customPlot->replot(QCustomPlot::RefreshPriority::rpImmediate);
 }
 
 //---------------------------------------------------------------------

@@ -83,8 +83,8 @@ bool ColorSwatchMask::applyMask(QImage* srcImg)
 
 //---------------------------------------------------------------------
 
-void ColorSwatchMask::setImageFilePathName	(const QString	&filePathName)	{d->mImgMaskFile = filePathName;}
-void ColorSwatchMask::setBackgroundColor	(const QColor	&color)			{d->mBgColor	 = color;}
+void ColorSwatchMask::setImageFilePathName		(const QString	&filePathName)	{d->mImgMaskFile = filePathName;}
+void ColorSwatchMask::setBackgroundColor		(const QColor	&color)			{d->mBgColor	 = color;}
 
 QImage	ColorSwatchMask::getImage()				const {return d->mImgMask?*d->mImgMask.get():QImage();}
 QString ColorSwatchMask::getImageFilePathName()	const {return d->mImgMaskFile;}

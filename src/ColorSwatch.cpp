@@ -6,21 +6,18 @@
 #include "ImagePlugin.h"
 #include "ColorSwatchMask.h"
 
-#include <QVector>
 #include <QSettings>
-#include <QVariant>
 #include <QDir>
 #include <QFile>
 #include <QImage>
 #include <QColor>
-#include <QRgb>
+#include <QVector>
 #include <QMap>
 
-#include <iostream>
 #include <memory>		// shared_ptr ...
 #include <stdexcept>	// exceptions ...
 #include <sstream>		// stringstream ...
-#include <algorithm>	//std::sort ...
+#include <algorithm>	// std::sort ...
 
 
 class ColorSwatch::Private
@@ -138,7 +135,7 @@ bool ColorSwatch::loadSettings(QString iniFile)
 		int j = 0;
 		for(QVariant db : reflectanceList)
 		{
-			d->mPatchesList.append( new ColorSwatchPatch(this, db.toDouble() ) );
+			d->mPatchesList.append( new ColorSwatchPatch(db.toDouble()) );
 			if( isccnbsList.size()-j > 0 )
 				d->mPatchesList.last()->setMunsellColor( new MunsellColor(isccnbsList.at(j++)) ); // TODO: use QColor HSV 
 			else
@@ -160,28 +157,37 @@ bool ColorSwatch::loadImages()
 
 	// apply settings by loading images
 	if( !d->mRawFile.isEmpty() )
-		result = d->mImgPlg->loadImage(d->mRawFile);
-
-	if(d->mMask)
 	{
-		if( d->mMask->loadImage() )
+		if(result = d->mImgPlg->loadImage(d->mRawFile))
 		{
-			if( d->mImgPlg->size().height() != d->mMask->getImage().size().height()
-				||
-				d->mImgPlg->size().width() != d->mMask->getImage().size().width()
-			)
-				throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
-			else if(result)
-				d->mMask->applyMask( &d->mImgPlg->toQImage() );
+			if(d->mMask)
+			{
+				if( d->mMask->loadImage() )
+				{
+					if( d->mImgPlg->size().height() != d->mMask->getImage().size().height()
+						||
+						d->mImgPlg->size().width() != d->mMask->getImage().size().width()
+					)
+						throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
+					else if(result)
+						d->mMask->applyMask( &d->mImgPlg->toQImage() );
+					else
+						throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask loaded but not applied as image file not loaded!");
+				}
+				else
+					throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
+			}
 			else
-				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask loaded but not applied as image file not loaded!");
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] No mask img provided!");
 		}
 		else
-			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
-
-		if(!result)
-			d->mMask.reset();
+			throw std::logic_error("["+FILE_LINE_FUNC_STR+"] Cannot load raw image!");
 	}
+	else
+		throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] No raw image filename provided!");
+	
+	if(!result)
+		d->mMask.reset();
 
 	return result;
 }
@@ -222,8 +228,8 @@ QString ColorSwatch::printPatchesInfo() const
 {
 	std::stringstream ss;
 	ss<<"["<<d->mPatchesList.size()<<"] Patches:\t\n";
-	for(ColorSwatchPatch* sample : d->mPatchesList)
-		ss<<"\tPatch: " << *sample <<"\n";
+	for(int i=0; i<d->mPatchesList.size(); i++)
+		ss<<"\tPatch ["<<i<<"]:"<< *d->mPatchesList[i] <<"\n";
 	return QString(ss.str().c_str());
 }
 
@@ -348,9 +354,76 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 	for(int i=0; i<patches.size(); i++)
 		if(d->mPatchesList.size() >= i)
 			d->mPatchesList[i]->setImage(patches[i]->mImg, patches[i]->mRelPixXbegin, patches[i]->mRelPixYbegin);
-	
+
 	patches.clear();
+
+
+	// compute averages pixels (but this time) using the SDK img provided and directly from the raw img pixels coords
+	if(!d->mImgPlg)
+		throw std::logic_error("["+FILE_LINE_FUNC_STR+"] Cannot computeAverageRGBpixel since SDK image is not available!");
+
+	for(ColorSwatchPatch* patch : d->mPatchesList)
+		patch->computeAverageRGBpixel(d->mImgPlg);
+
 	return result = true;
+}
+
+//---------------------------------------------------------------------
+
+ColorSwatch::GraphData2D ColorSwatch::getGraphData(DATA datalist)
+{
+	GraphData2D data;
+	switch(datalist)
+	{
+	case DATA::REF : // linearity
+		{
+			// first point (min)
+			data.first.push_back(0);	//x (reflectance %)
+			data.second.push_back(0);	//y (float channel average [0-1])
+			// second point (max)
+			data.first.push_back(100);	//x (reflectance %)
+			data.second.push_back(1);	//y (float channel average [0-1])
+			break;
+		}
+	case DATA::R : //red channel patches averages
+		{
+			for(ColorSwatchPatch* patch : d->mPatchesList)
+			{
+				data.first.push_back (patch->getReflectance());
+				data.second.push_back(patch->getAverageColor().redF());
+			}
+			break;
+		}
+	case DATA::G : //green channel patches averages
+		{
+			for(ColorSwatchPatch* patch : d->mPatchesList)
+			{
+				data.first.push_back (patch->getReflectance());
+				data.second.push_back(patch->getAverageColor().greenF());
+			}
+			break;
+		}
+	case DATA::B : //red channel patches averages
+		{
+			for(ColorSwatchPatch* patch : d->mPatchesList)
+			{
+				data.first.push_back (patch->getReflectance());
+				data.second.push_back(patch->getAverageColor().blueF());
+			}
+			break;
+		}
+	case DATA::A : //alpha channel patches averages
+		{
+			for(ColorSwatchPatch* patch : d->mPatchesList)
+			{
+				data.first.push_back (patch->getReflectance());
+				data.second.push_back(patch->getAverageColor().alphaF());
+			}
+			break;
+		}
+	default : break;
+	}
+	return data;
 }
 
 //---------------------------------------------------------------------

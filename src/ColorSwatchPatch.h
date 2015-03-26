@@ -1,15 +1,18 @@
 #pragma once
 
+#include <QString>
+#include <QColor>
+
 #include <iostream>
 
-class ColorSwatch;
 class MunsellColor;
 class QImage;
+class ImagePlugin;
 
 class ColorSwatchPatch
 {
 public:
-	ColorSwatchPatch(ColorSwatch* colorSwatch, double reflectance);
+	ColorSwatchPatch(double reflectance);
 	virtual ~ColorSwatchPatch();
 
 public:
@@ -19,7 +22,13 @@ public:
 	void			setMunsellColor(	const MunsellColor* munsellColor);
 	MunsellColor*	getMunsellColor()	const;
 
-	void			setImage(QImage* img, int orgPixXrelFromMask, int orgPixYrelFromMask);
+	void			setImage(const QImage* img, const int orgPixXrelFromMask, const int orgPixYrelFromMask);
+	QString			printPatcheImgInfo() const;
+
+public:
+	bool	computeAverageRGBpixel(ImagePlugin* imgPlg);
+	bool	haveAverageColor()	const;
+	QColor	getAverageColor()	const;
 
 public:
 	friend std::ostream& operator<<(std::ostream& stream, const ColorSwatchPatch &colorSwatchPatch);
