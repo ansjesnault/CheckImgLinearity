@@ -70,16 +70,14 @@ if(WIN32)
         endforeach()
     endif()
     ## WORK AROUND: QT5 5.2.1 win32 OpenGL problem to find glu32... we need WINSDK to let qt find it
-    find_package(WindowsSDK 7 QUIET)
+    find_package(WindowsSDK QUIET)
     if(WindowsSDK_FOUND)
         list(APPEND CMAKE_LIBRARY_PATH ${WindowsSDK_LIBRARY_DIRS})
-    else()
-        message(WARNING "You need Windows SDK to let Qt5 find OpenGL glu32.")
     endif()
 endif()
 set(Qt5_DIR ${Qt5_DIR} CACHE PATH "Path to <Qt5 installation>/lib/cmake/Qt5")
 set(CMAKE_AUTOMOC ON)
-find_package(Qt5 COMPONENTS Widgets PrintSupport REQUIRED)
+find_package(Qt5 COMPONENTS Widgets PrintSupport REQUIRED) ## for qcustomplot dependency
 if(NOT Qt5_FOUND)
     message(SEND_ERROR "Qt5 not found, please set Qt5_DIR to <Qt5 installation>/lib/cmake/Qt5")
 elseif(WIN32 AND "${QT_VERSION_MAJOR}.${QT_VERSION_MINOR}.${QT_VERSION_PATCH}" MATCHES "5.2.1")
@@ -88,6 +86,7 @@ endif()
 if(POLICY CMP0020)
 	cmake_policy(SET CMP0020 NEW) ## auto link to qtmain under windows
 endif()
+
 
 ## OpenImageIO
 find_package(OpenImageIO REQUIRED)
@@ -98,17 +97,87 @@ else()
 endif()
 
 
+## Prepare external qcustomplot 3rdParty (optional different way)
+set(QCP_PREFIX "${CMAKE_BINARY_DIR}/external/qcustomplot")
+macro(AS_EXTERNAL type)
+
+    if(${type} MATCHES "GIT")
+        set(DL_TYPE_ARG     GIT_REPOSITORY  https://gitorious.org/qcustomplot/qcustomplot.git)
+        set(FROM_AMALGAMATE OFF)
+    elseif(${type} MATCHES "ZIP")
+        set(DL_TYPE_ARG     URL "${CMAKE_SOURCE_DIR}/external/QCustomPlot.tar.gz")
+        set(FROM_AMALGAMATE ON)
+    endif()    
+    include(ExternalProject)
+    ExternalProject_Add(qcustomplot
+        PREFIX          ${QCP_PREFIX}
+        ${DL_TYPE_ARG}
+		PATCH_COMMAND   ${GIT_EXECUTABLE} apply "${CMAKE_SOURCE_DIR}/external/QCustomPlot.patch"
+        INSTALL_DIR     ${QCP_PREFIX}/install
+        CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=${QCP_PREFIX}/install -DQt5_DIR=${Qt5_DIR} -DBUID_FROM_AMALGAMATE=${FROM_AMALGAMATE} -DBUILD_SHARED=OFF
+    )
+    set(QCustomPlot_DIR ${QCP_PREFIX}/install CACHE PATH "" FORCE)
+    ## we already know in advance where are include and lib
+    include_directories(${QCustomPlot_DIR}/include)
+    set(QCUSTOMPLOT_LIBRARIES debug ${QCustomPlot_DIR}/lib/qcustomplotd.lib optimized ${QCustomPlot_DIR}/lib/qcustomplot.lib)
+    ## or we can run-run cmake (1st for externalProject build only, second time with find_packages and normal build)
+    
+endmacro()
+set(QCustomPlot_BUILD AS_EXTERNAL_GIT CACHE STRING "which way we build qcustomplot")
+set_property(CACHE QCustomPlot_BUILD PROPERTY STRINGS AS_EXTERNAL_GIT AS_EXTERNAL_ZIP AS_LOCAL AS_EMBEDED)
+if(${QCustomPlot_BUILD} MATCHES "AS_EXTERNAL_GIT")      ## use External_Project from public git url (master branch)
+    
+    AS_EXTERNAL(GIT)
+    
+elseif(${QCustomPlot_BUILD} MATCHES "AS_EXTERNAL_ZIP")  ## use External_Project from a local zip install file
+    
+    AS_EXTERNAL(ZIP)
+    
+elseif(${QCustomPlot_BUILD} MATCHES "AS_FIND_PACKAGE")  ## "classic" 3rdParty cmake find (based on our CMakeLists.txt from patch)
+    
+    set(QCustomPlot_DIR "" CACHE PATH "")
+    find_package(QCustomPlot REQUIRED)
+    include_directories(${QCUSTOMPLOT_INCLUDE_DIRS})
+    
+elseif(${QCustomPlot_BUILD} MATCHES "AS_EMBEDED")       ## build our project with qcustomplot.h/.cpp directly embeded (part of our sources)
+    
+    set(PROGRAMFILESx86 "PROGRAMFILES(x86)")
+    if(NOT SEVEN_ZIP_CMD)
+		find_program(SEVEN_ZIP_CMD NAMES 7z 7za p7zip DOC "7-zip executable" PATHS "$ENV{PROGRAMFILES}/7-Zip" "$ENV{${PROGRAMFILESx86}}/7-Zip" "$ENV{ProgramW6432}/7-Zip")
+	endif()
+    if(SEVEN_ZIP_CMD)
+        execute_process(COMMAND ${SEVEN_ZIP_CMD} x "${CMAKE_SOURCE_DIR}/external/QCustomPlot.tar.gz" -y
+						WORKING_DIRECTORY ${QCP_PREFIX} TIMEOUT 200 RESULT_VARIABLE resVar OUTPUT_VARIABLE outVar ERROR_VARIABLE errVar )
+        if(${resVar} MATCHES "0")
+            execute_process(COMMAND ${SEVEN_ZIP_CMD} x "${QCP_PREFIX}/QCustomPlot.tar" -y
+                WORKING_DIRECTORY ${QCP_PREFIX} TIMEOUT 200 RESULT_VARIABLE resVar OUTPUT_VARIABLE outVar ERROR_VARIABLE errVar )
+        endif()
+        if(${resVar} MATCHES "0")
+            message(STATUS "unzip QCustomPlot.tar.gz")
+        else()
+            message("unzip: resVar=${resVar}\nunzip: outVar=${outVar}\nunzip: errVar=${errVar}\nunzip: failed or canceled or timeout")
+        endif()
+    else()
+        message(WARNING "SEVEN_ZIP_CMD not found, set it or switch QCustomPlot_BUILD method")
+    endif()
+    if(EXISTS "${QCP_PREFIX}/qcustomplot/qcustomplot.h")
+        set(qcustomSourcesFiles 
+            "${QCP_PREFIX}/qcustomplot/qcustomplot.h"
+            "${QCP_PREFIX}/qcustomplot/qcustomplot.cpp"
+        )
+        message(STATUS "add qcustomplot.h/.cpp to be part of our project sources.")
+    else()
+        message(WARNING "qcustomplot sources files missing, switch QCustomPlot_BUILD method")
+    endif()
+    
+endif()
+
+
+
 ## CONFIG our project files
 
 set(SOURCES 
-#    .h
-#    .cpp
-#	src/mainwindow.h
-#	src/mainwindow.cpp
-	
-	src/qcustomplot.h
-	src/qcustomplot.cpp
-	
+	${qcustomSourcesFiles}
 	src/main.cpp
 		
 	src/SwatchMainWindow.h
@@ -132,19 +201,20 @@ set(SOURCES
     src/ColorSwatchMask.cpp
 )
 
-QT5_WRAP_UI(UIS_HDRS
-#    .ui
-	src/mainwindow.ui
-)
+QT5_WRAP_UI(UIS_HDRS src/mainwindow.ui)
 
 add_executable(${PROJECT_NAME} 
     #WIN32 
     ${SOURCES}
     ${UIS_HDRS}
 )
-    
+
 target_link_libraries(${PROJECT_NAME} 
-	Qt5::Widgets
-	Qt5::PrintSupport
+	Qt5::Widgets Qt5::PrintSupport
+    ${QCUSTOMPLOT_LIBRARIES}
 	${OPENIMAGEIO_LIBRARIES}
 )
+
+if(TARGET qcustomplot)
+    add_dependencies(${PROJECT_NAME} qcustomplot)
+endif()

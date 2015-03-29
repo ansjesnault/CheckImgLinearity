@@ -62,12 +62,11 @@ public:
 
 public:
     /// create filter string for all formats supported by QImage
-	virtual QString getImageFilterExtensions()	{return QString();}
-	virtual bool	loadImage(QString filename)	{return false;}
-	virtual QImage	toQImage()					{return QImage();}	
-	virtual QSize	size()						{return QSize();}
-
-	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a){return false;}
+	virtual QString getImageFilterExtensions();
+	virtual bool	loadImage(QString filename);
+	virtual QImage	toQImage();
+	virtual QSize	size();
+	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a);
 
 private:
     class Private;

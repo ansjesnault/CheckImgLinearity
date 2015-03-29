@@ -164,11 +164,16 @@ bool ColorSwatch::loadImages()
 			{
 				if( d->mMask->loadImage() )
 				{
-					if( d->mImgPlg->size().height() != d->mMask->getImage().size().height()
-						||
-						d->mImgPlg->size().width() != d->mMask->getImage().size().width()
-					)
-						throw std::length_error("["+FILE_LINE_FUNC_STR+"] Image file and mask image haven't the same size!");
+					QSize img	(d->mImgPlg->size().width(),			d->mImgPlg->size().height());
+					QSize mask	(d->mMask->getImage().size().width(),	d->mMask->getImage().size().height());
+					if(img != mask)
+					{
+						QString imgResl		= QString("img(%1,%2)").arg(img.width()).arg(img.height());
+						QString imaskResl	= QString("mask(%1,%2)").arg(mask.width()).arg(mask.height());
+						QString resolComp	= QString("%1 vs %2").arg(imgResl).arg(imaskResl);
+						std::cerr<<resolComp.toStdString()<<std::endl;
+						throw std::length_error("["+FILE_LINE_FUNC_STR+"]Image file and mask image haven't the same size! ");
+					}
 					else if(result)
 						d->mMask->applyMask( &d->mImgPlg->toQImage() );
 					else
@@ -245,8 +250,8 @@ QString ColorSwatch::printMaskInfo() const
 std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch)
 {
 	return stream<<"ColorSwatch:\n"
-		<<"["<<(colorSwatch.imageFilePathName().isEmpty()?"-":"X")<<"] Raw image:\t"			<<colorSwatch.imageFilePathName().toStdString()<<"\n"
-		<<"["<<(colorSwatch.rawFilePathName().isEmpty()?"-":"X")	<<"] Other format image:\t"	<<colorSwatch.rawFilePathName().toStdString()
+		<<"["<<(colorSwatch.rawFilePathName().isEmpty()?"-":"X")<<"] Raw image:\t"			<<colorSwatch.imageFilePathName().toStdString()<<"\n"
+		<<"["<<(colorSwatch.imageFilePathName().isEmpty()?"-":"X")	<<"] Other format image:\t"	<<colorSwatch.rawFilePathName().toStdString()<<"\n"
 		<<colorSwatch.printMaskInfo().toStdString()
 		<<colorSwatch.printPatchesInfo().toStdString();
 }

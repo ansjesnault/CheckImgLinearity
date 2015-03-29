@@ -1,6 +1,5 @@
 #include "SwatchMainWindow.h"
-#include "qcustomplot.h"
-#include "ui_mainwindow.h"
+#include "ui_mainwindow.h" //=> this include qcustomplot.h
 #include "ImagePlugin.h"
 #include "ColorSwatch.h"
 #include "PreBuildUtil.h"
@@ -75,11 +74,11 @@ bool SwatchMainWindow::loadColorWatchSettings(QString iniFile)
 	bool isLoaded = false;
 	try							
 	{ 
-		if( d->mColorSwatch->loadSettings(d->mLoadedSettingsFilePath) )
+		if( isLoaded = d->mColorSwatch->loadSettings(d->mLoadedSettingsFilePath) )
 		{
-			if( d->mColorSwatch->loadImages() )
+			if( isLoaded = d->mColorSwatch->loadImages() )
 			{
-				d->mColorSwatch->fillPatchesPixelsFromMask();
+				isLoaded = d->mColorSwatch->fillPatchesPixelsFromMask();
 				createGraph(d->mColorSwatch->getGraphData(ColorSwatch::DATA::REF),
 					d->mColorSwatch->getGraphData(ColorSwatch::DATA::R),
 					d->mColorSwatch->getGraphData(ColorSwatch::DATA::G),
@@ -89,9 +88,9 @@ bool SwatchMainWindow::loadColorWatchSettings(QString iniFile)
 			}
 		}
 	}
-	catch(std::exception &e) { std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; }
+	catch(std::exception &e) { std::cerr<<"[Failed to load settings] "+std::string(e.what())<<std::endl; isLoaded=false;}
 
-	if(isLoaded = d->mColorSwatch->haveImage())
+	if(d->mColorSwatch->haveImage())
 		d->mUi->label->setPixmap( QPixmap::fromImage( d->mColorSwatch->getQImage().scaled(d->mUi->label->size(),Qt::KeepAspectRatio) ) );
 
 	d->mUi->statusBar->showMessage( 

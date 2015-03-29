@@ -41,6 +41,7 @@ ImagePluginQt::~ImagePluginQt()
 
 QString ImagePluginQt::getImageFilterExtensions()
 {
+	// format: 'Image (*.png *.jpg *.bmp)')
     QStringList imageExts;
     for(const QByteArray &format : QImageReader::supportedImageFormats())
         imageExts.append(QString("*.%1").arg(format.data()));
@@ -135,12 +136,24 @@ bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g,
 //---------   ImagePluginOIIO  ----------------------------------------
 //---------------------------------------------------------------------
 
+#include <OpenImageIO/imageio.h>
+#include <OpenImageIO/imagecache.h>
+#include <OpenImageIO/imagebuf.h>
+
+OIIO_NAMESPACE_USING;
+
 class ImagePluginOIIO::Private
 {
 public:
 	Private()
 	{}
+
 public:
+	std::unique_ptr<ImageInput> mImgIn;
+	std::unique_ptr<ImageBuf>	mImgBuf;
+
+	std::string mCurrentFileName;
+	std::shared_ptr<QImage> mQimg;
 };
 
 //---------------------------------------------------------------------
@@ -149,7 +162,6 @@ ImagePluginOIIO::ImagePluginOIIO()
 	: ImagePlugin()
 	, d(new Private)
 {
-
 }
 
 ImagePluginOIIO::~ImagePluginOIIO() 
@@ -158,3 +170,117 @@ ImagePluginOIIO::~ImagePluginOIIO()
 }
 
 //---------------------------------------------------------------------
+
+QString ImagePluginOIIO::getImageFilterExtensions()	// needed format: 'Image (*.png *.jpg *.bmp)')
+{
+	// oiio format: <foramt>:<extension>,<extension>,<...>;<format><...>
+	// example: tiff:tif;jpeg:jpg,jpeg;openexr:exr
+	std::string extension_list;
+	getattribute("extension_list",extension_list);
+	
+	QString imgFilterExt("Image (");
+	QStringList formatsList = QString(extension_list.c_str()).split(";");
+	for(QString format : formatsList)
+	{
+		QStringList namesList	= format.split(":");
+		QStringList extList		= namesList.last().split(",");
+		for(QString ext : extList)
+			imgFilterExt.append(QString("*.%1 ").arg(ext));
+	}
+	
+	//replace last space by ')' to close the needed format string to return
+	imgFilterExt.replace(imgFilterExt.length(), 1, ")");
+
+	return imgFilterExt;
+}
+
+//---------------------------------------------------------------------
+
+bool ImagePluginOIIO::loadImage(QString filename)
+{
+	d->mCurrentFileName = filename.toStdString();
+	d->mImgIn.reset(	ImageInput::open(d->mCurrentFileName)	);
+	d->mImgBuf.reset(	new ImageBuf(d->mCurrentFileName)		);
+	d->mQimg.reset();
+	return d->mImgIn.get() ? true : false;
+}
+
+//---------------------------------------------------------------------
+
+QImage ImagePluginOIIO::toQImage()
+{
+	if(d->mImgIn == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		return QImage();
+	}
+
+	// shortcut necessary to avoid reloading same images each time we need it (Qt GUI resize event)
+	if(d->mQimg != nullptr)
+		return *d->mQimg.get();
+
+	d->mQimg.reset(new QImage(d->mImgIn->spec().width, d->mImgIn->spec().height, QImage::Format_RGB32) );
+
+	ImageSpec spec = d->mImgIn->spec();
+	int ncTot	= spec.nchannels;
+	int nc3		= std::min(3, ncTot);			// we only need RGB channel data for Format_RGB32
+	std::vector<float> scanline( spec.width * ncTot);
+	for( int row = 0; row < spec.height; row++ )
+	{
+		d->mImgIn->read_scanline( row+spec.y, 0+spec.z, TypeDesc::FLOAT, &scanline[0] );
+		for( int col = 0; col < spec.width; col++ )
+		{
+			float rgb[3] = { 0, 0, 0 };
+			for(int i=0; i<nc3; ++i)
+				rgb[i] = scanline[col*ncTot+i];
+
+			QColor color;
+			color.setRedF	(rgb[0]);
+			color.setGreenF	(rgb[1]);
+			color.setBlueF	(rgb[2]);
+
+			d->mQimg->setPixel(col, row, color.rgb());
+		}
+	}
+
+	return *d->mQimg.get();
+}
+
+//---------------------------------------------------------------------
+
+QSize ImagePluginOIIO::size()
+{
+	if(d->mCurrentFileName.empty())
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]current filename not provided (need to be loaded)...abort."<<std::endl;
+		return QSize();
+	}
+	if(d->mImgIn == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		return QSize();
+	}
+	return QSize(d->mImgIn->spec().width, d->mImgIn->spec().height);
+}
+
+//---------------------------------------------------------------------
+
+bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a)
+{
+	if(d->mImgIn == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		return false;
+	}
+
+	ImageSpec spec = d->mImgIn->spec();
+	spec.attribute(string_view("oiio:ColorSpace"), string_view("Linear"));
+
+	std::vector<float> pix(spec.nchannels);
+	for(auto pixCoord : pixCoords)
+	{
+		bool ok = d->mImgIn->read_tile(pixCoord.first, pixCoord.second, 0, TypeDesc::FLOAT, &pix[0]);
+	}
+
+	return false;
+}
