@@ -242,6 +242,7 @@ void SwatchMainWindow::createGraph(
 	GraphData2D graphA
 	)
 {
+	d->mUi->customPlot->clearGraphs();
 	d->mUi->customPlot->setWindowTitle("Check pixels linearity");
 
 	d->mUi->customPlot->xAxis->setLabel("Known patches reflectances %");

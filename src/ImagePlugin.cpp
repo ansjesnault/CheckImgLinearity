@@ -78,54 +78,60 @@ bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g,
 	bool err = false;
 	int nbPixels = 0;
 
-	/*// This method use bytes [0-255] channels averages computation
-	int somRed = 0, somGreen = 0, somBlue = 0, somAlpha = 0;
-	for(auto pixCoord : pixCoords)
+	bool useFloat = true;
+	if(!useFloat)
 	{
-		if(d->mQimg->valid(pixCoord.first, pixCoord.second))
+		// This method use bytes [0-255] channels averages computation
+		int somRed = 0, somGreen = 0, somBlue = 0, somAlpha = 0;
+		for(auto pixCoord : pixCoords)
 		{
-			QRgb pix  = d->mQimg->pixel(pixCoord.first, pixCoord.second);
-			somRed	 += qRed(pix);
-			somGreen += qGreen(pix);
-			somBlue	 += qBlue(pix);
-			somAlpha += qAlpha(pix);
-			nbPixels ++;
+			if(d->mQimg->valid(pixCoord.first, pixCoord.second))
+			{
+				QRgb pix  = d->mQimg->pixel(pixCoord.first, pixCoord.second);
+				somRed	 += qRed(pix);
+				somGreen += qGreen(pix);
+				somBlue	 += qBlue(pix);
+				somAlpha += qAlpha(pix);
+				nbPixels ++;
+			}
+			else
+				err = true;
 		}
-		else
-			err = true;
+		// Convert pixel bytes [0-255] to float precision
+		r = (somRed/nbPixels)/255.0f;
+		g = (somGreen/nbPixels)/255.0f;
+		b = (somBlue/nbPixels)/255.0f;
+		a = (somAlpha/nbPixels)/255.0f;
 	}
-	// Convert pixel bytes [0-255] to float precision
-	r = (somRed/nbPixels)/255.0f;
-	g = (somGreen/nbPixels)/255.0f;
-	b = (somBlue/nbPixels)/255.0f;
-	a = (somAlpha/nbPixels)/255.0f;
-	*/
-
-	// this method use float [0-1] channel averages computation 
-	for(auto pixCoord : pixCoords)
+	else
 	{
-		if(d->mQimg->valid(pixCoord.first, pixCoord.second))
+		// this method use float [0-1] channel averages computation 
+		for(auto pixCoord : pixCoords)
 		{
-			QColor color(d->mQimg->pixel(pixCoord.first, pixCoord.second));
-			r += color.redF();
-			g += color.greenF();
-			b += color.blueF();
-			a += color.alphaF();
-			nbPixels ++;
+			if(d->mQimg->valid(pixCoord.first, pixCoord.second))
+			{
+				QColor color(d->mQimg->pixel(pixCoord.first, pixCoord.second));
+				r += color.redF();
+				g += color.greenF();
+				b += color.blueF();
+				a += color.alphaF();
+				nbPixels ++;
+			}
+			else
+				err = true;
 		}
-		else
-			err = true;
+		float scale = 1.0f / float(nbPixels);
+		r = r*scale;
+		g = g*scale;
+		b = b*scale;
+		a = a*scale;
 	}
-	float scale = 1.0f / float(nbPixels);
-	r = r*scale;
-	g = g*scale;
-	b = b*scale;
-	a = a*scale;
 
 	if(err)
 		std::cout<<"["<<FILE_LINE_FUNC_STR<<"] ERROR occured. Some invalid pixel was detected. Averages will be affected."<<std::endl;
 	else
 		return true;
+
 	return false;
 }
 
@@ -139,6 +145,7 @@ bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g,
 #include <OpenImageIO/imageio.h>
 #include <OpenImageIO/imagecache.h>
 #include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/platform.h>
 
 OIIO_NAMESPACE_USING;
 
@@ -250,37 +257,45 @@ QImage ImagePluginOIIO::toQImage()
 
 QSize ImagePluginOIIO::size()
 {
-	if(d->mCurrentFileName.empty())
-	{
-		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]current filename not provided (need to be loaded)...abort."<<std::endl;
-		return QSize();
-	}
-	if(d->mImgIn == nullptr)
+	if(d->mImgBuf == nullptr)
 	{
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
 		return QSize();
 	}
-	return QSize(d->mImgIn->spec().width, d->mImgIn->spec().height);
+	return QSize(d->mImgBuf->spec().width, d->mImgBuf->spec().height);
 }
 
 //---------------------------------------------------------------------
 
 bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a)
 {
-	if(d->mImgIn == nullptr)
+	if(d->mImgBuf == nullptr)
 	{
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
 		return false;
 	}
 
-	ImageSpec spec = d->mImgIn->spec();
-	spec.attribute(string_view("oiio:ColorSpace"), string_view("Linear"));
-
-	std::vector<float> pix(spec.nchannels);
-	for(auto pixCoord : pixCoords)
+	if(!d->mImgBuf->read(0,0,false,TypeDesc::FLOAT))
 	{
-		bool ok = d->mImgIn->read_tile(pixCoord.first, pixCoord.second, 0, TypeDesc::FLOAT, &pix[0]);
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image buffer can't read image...abort."<<std::endl;
+		return false;
 	}
 
-	return false;
+	int nc = d->mImgBuf->nchannels();
+	std::vector<float> total (nc, 0.0f);
+	for(auto pixCoord : pixCoords)
+	{
+		float* pixel = OIIO_ALLOCA(float,nc);
+		d->mImgBuf->getpixel(pixCoord.first, pixCoord.second, pixel);
+		for (int c = 0; c < nc; c++)
+			total[c] += pixel[c];
+	}
+
+	r = total[0]/float(pixCoords.size());
+	g = total[1]/float(pixCoords.size());
+	b = total[2]/float(pixCoords.size());
+	if(nc>=3)
+		a = total[3]/float(pixCoords.size());
+
+	return true;
 }
