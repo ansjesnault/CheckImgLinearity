@@ -36,7 +36,6 @@ public:
 
 public:
 	QString rawFilePathName()		const;
-	QString imageFilePathName()		const;
 	bool	haveImage()				const;
 	bool	haveMask()				const;
 	QImage	getMaskImg()			const;
@@ -46,6 +45,10 @@ public:
 
 public:
 	friend	std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch);
+
+protected:
+	// save/write image mask converted to ARGB32 to help see what happened
+	void writeImage2QImage(); // for debug purpose only
 
 private:
 	class Private;

@@ -26,7 +26,11 @@ public:
 	/// Get the image resolution
 	virtual QSize	size() = 0;
 
+	/// Get the averages pixel channels given a list of pixel coord x,y
 	virtual bool averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a) = 0;
+
+	/// Try to write an output filename from the opened/loaded image (based on the file extension) 
+	virtual bool save(QString filename) = 0;
 };
 
 //---------------------------------------------------------------------
@@ -45,6 +49,7 @@ public:
 	virtual QImage	toQImage();
 	virtual QSize	size();
 	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a);
+	virtual bool	save(QString filename);
 
 private:
     class Private;
@@ -67,6 +72,7 @@ public:
 	virtual QImage	toQImage();
 	virtual QSize	size();
 	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a);
+	virtual bool	save(QString filename);
 
 private:
     class Private;

@@ -135,25 +135,47 @@ void SwatchMainWindow::createConnexionsMenu()
 		{
 			d->mOpenedImgFilePath = QFileDialog::getOpenFileName(this, 
 					tr("Open Image"), 
-					QApplication::applicationDirPath(),//+"/rsc", 
+					QApplication::applicationDirPath(),
 					d->mImgPlg->getImageFilterExtensions() 
 				);
-			d->mLoadedSettingsFilePath = QString();
-			openImage(d->mOpenedImgFilePath);
+			if(!d->mOpenedImgFilePath.isEmpty())
+			{
+				d->mLoadedSettingsFilePath = QString();
+				openImage(d->mOpenedImgFilePath);
+			}
 		}
 	);
 
 	// Load ini file for the ColorSwatch test kit
 	connect(d->mUi->action_LoadColorSwatchSettings, &QAction::triggered, [this]()
 		{
-			d->mLoadedSettingsFilePath = QFileDialog::getOpenFileName(this, tr("Open test kit settings"), 
-					QApplication::applicationDirPath()+"/rsc", 
+			d->mLoadedSettingsFilePath = QFileDialog::getOpenFileName(this, 
+					tr("Open test kit settings"), 
+					QApplication::applicationDirPath(),
 					tr("Ini Files (*.ini)")
 				);
-			d->mOpenedImgFilePath = QString();
-			loadColorWatchSettings(d->mLoadedSettingsFilePath);
+			if(!d->mLoadedSettingsFilePath.isEmpty())
+			{
+				d->mOpenedImgFilePath = QString();
+				loadColorWatchSettings(d->mLoadedSettingsFilePath);
+			}
 		}
 	);
+
+	// Save an Image
+	connect(d->mUi->action_SaveAs, &QAction::triggered, [this]()
+		{
+			if(d->mOpenedImgFilePath.isEmpty() && d->mLoadedSettingsFilePath.isEmpty()) return;
+			QString saveFile = QFileDialog::getSaveFileName(this, 
+					tr("Save Image"), 
+					QApplication::applicationDirPath(), 
+					d->mImgPlg->getImageFilterExtensions() 
+				);
+			if(d->mImgPlg->size() != QSize())
+				d->mImgPlg->save(saveFile);
+		}
+	);
+
 
 	// swtich to Qt SDK image plugin
 	connect(d->mUi->action_Qt, &QAction::triggered, [this]()

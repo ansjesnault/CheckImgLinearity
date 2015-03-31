@@ -75,6 +75,12 @@ QSize ImagePluginQt::size()
 
 bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a)
 {
+	if(!d->mQimg)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Cannot continue without a valid QImage loaded."<<std::endl;
+		return false;
+	}
+
 	bool err = false;
 	int nbPixels = 0;
 
@@ -135,6 +141,21 @@ bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g,
 	return false;
 }
 
+//---------------------------------------------------------------------
+
+bool ImagePluginQt::save(QString filename)
+{
+	if(!d->mQimg)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Cannot continue without a valid QImage loaded."<<std::endl;
+		return false;
+	}
+	std::cout<<"Saving QImage: "<<filename.toStdString()<<std::flush;
+	bool ok = d->mQimg->save(filename);
+	std::cout<<(ok?" ...Done":"...FAILED")<<std::endl;
+	return ok;
+}
+
 
 
 
@@ -143,24 +164,17 @@ bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g,
 //---------------------------------------------------------------------
 
 #include <OpenImageIO/imageio.h>
-#include <OpenImageIO/imagecache.h>
 #include <OpenImageIO/imagebuf.h>
-#include <OpenImageIO/platform.h>
+#include <OpenImageIO/platform.h> // for pixel allocation
 
 OIIO_NAMESPACE_USING;
 
 class ImagePluginOIIO::Private
 {
 public:
-	Private()
-	{}
-
-public:
-	std::unique_ptr<ImageInput> mImgIn;
+	std::string					mCurrentFileName;
 	std::unique_ptr<ImageBuf>	mImgBuf;
-
-	std::string mCurrentFileName;
-	std::shared_ptr<QImage> mQimg;
+	std::shared_ptr<QImage>		mQimg;
 };
 
 //---------------------------------------------------------------------
@@ -206,17 +220,16 @@ QString ImagePluginOIIO::getImageFilterExtensions()	// needed format: 'Image (*.
 bool ImagePluginOIIO::loadImage(QString filename)
 {
 	d->mCurrentFileName = filename.toStdString();
-	d->mImgIn.reset(	ImageInput::open(d->mCurrentFileName)	);
-	d->mImgBuf.reset(	new ImageBuf(d->mCurrentFileName)		);
+	d->mImgBuf.reset( new ImageBuf(d->mCurrentFileName) );
 	d->mQimg.reset();
-	return d->mImgIn.get() ? true : false;
+	return d->mImgBuf.get() ? true : false;
 }
 
 //---------------------------------------------------------------------
 
 QImage ImagePluginOIIO::toQImage()
 {
-	if(d->mImgIn == nullptr)
+	if(d->mImgBuf == nullptr)
 	{
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
 		return QImage();
@@ -226,9 +239,19 @@ QImage ImagePluginOIIO::toQImage()
 	if(d->mQimg != nullptr)
 		return *d->mQimg.get();
 
-	d->mQimg.reset(new QImage(d->mImgIn->spec().width, d->mImgIn->spec().height, QImage::Format_RGB32) );
+	bool useNative = false;
+	ImageSpec spec = (useNative ? d->mImgBuf->nativespec() : d->mImgBuf->spec());
+	std::cout<<"file format name :"<<d->mImgBuf->file_format_name()<<std::endl;
+	std::cout<<(useNative?"native format ":"format ")<<spec.format<<std::endl;
+	if(spec.nchannels < 3)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Only channels numbers > 3 is allowed for QImage conversion...abort."<<std::endl;
+		return QImage();
+	}
 
-	ImageSpec spec = d->mImgIn->spec();
+	d->mQimg.reset(new QImage(spec.width, spec.height, QImage::Format_RGB32) );
+
+	/* // this code could be use if you use (instead of imageBuf) ImageInput pointer : d->mImgIn.reset(ImageInput::open(d->mCurrentFileName));
 	int ncTot	= spec.nchannels;
 	int nc3		= std::min(3, ncTot);			// we only need RGB channel data for Format_RGB32
 	std::vector<float> scanline( spec.width * ncTot);
@@ -247,6 +270,59 @@ QImage ImagePluginOIIO::toQImage()
 			color.setBlueF	(rgb[2]);
 
 			d->mQimg->setPixel(col, row, color.rgb());
+		}
+	}
+	*/
+
+	// TODO: try to add progress callback to read() function
+	if( !d->mImgBuf->read(0, 0, false, spec.format) ) //spec.format //TypeDesc::BASETYPE::FLOAT
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Cannot read imageBuf...abort."<<std::endl;
+
+	// This switch demonstrate how to manipulate specific data format or to handle directly default floating pixel format (conversion is auto handled internaly)
+	switch(spec.format.basetype)
+	{
+	case TypeDesc::BASETYPE::FLOAT : 
+		{
+			// ImageBuf iterator is based on <BUFT,USERT=float> the type of data stored in buffer AND the type of retrive data you want to manipulate
+			for( ImageBuf::ConstIterator<float> it(*d->mImgBuf.get()); !it.done(); ++it)
+			{
+				QColor color;// float [0-1]
+				color.setRedF	(it[0]);
+				color.setGreenF	(it[1]);
+				color.setBlueF	(it[2]);
+				d->mQimg->setPixel(it.x(), it.y(), color.rgb());
+			}
+			break;
+		}
+	case TypeDesc::BASETYPE::UINT8 :
+		{
+			for( ImageBuf::ConstIterator<unsigned char, unsigned char> it(*d->mImgBuf.get()); !it.done(); ++it)
+			{
+				QColor color(it[0], it[1], it[2]); // UINT8 [0-255]
+				d->mQimg->setPixel(it.x(), it.y(), color.rgb());
+			}
+			break;
+		}
+	default:
+		{
+			std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]"<<spec.format<<" format is not yet handled here. Try forcing float format."<<std::endl;
+			d->mImgBuf->reset(d->mCurrentFileName);
+			if(d->mImgBuf->read(0, 0, true, TypeDesc::BASETYPE::FLOAT)) // force FLOAT buffer convertion
+			{
+				for( ImageBuf::ConstIterator<float> it(*d->mImgBuf.get()); !it.done(); ++it)
+				{
+					QColor color;	// float [0-1]
+					color.setRedF	(it[0]);
+					color.setGreenF	(it[1]);
+					color.setBlueF	(it[2]);
+					d->mQimg->setPixel(it.x(), it.y(), color.rgb());
+				}
+			}
+			else
+			{
+				std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]"<<"Failed to read...abort"<<std::endl;
+				return QImage();
+			}
 		}
 	}
 
@@ -274,7 +350,7 @@ bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
 		return false;
 	}
-
+	
 	if(!d->mImgBuf->read(0,0,false,TypeDesc::FLOAT))
 	{
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image buffer can't read image...abort."<<std::endl;
@@ -287,7 +363,7 @@ bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &
 	{
 		float* pixel = OIIO_ALLOCA(float,nc);
 		d->mImgBuf->getpixel(pixCoord.first, pixCoord.second, pixel);
-		for (int c = 0; c < nc; c++)
+		for (int c = 0; c <= nc; c++)
 			total[c] += pixel[c];
 	}
 
@@ -298,4 +374,20 @@ bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &
 		a = total[3]/float(pixCoords.size());
 
 	return true;
+}
+
+//---------------------------------------------------------------------
+
+
+bool ImagePluginOIIO::save(QString filename)
+{
+	if(d->mImgBuf == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		return false;
+	}
+	std::cout<<"Saving QImage: "<<filename.toStdString()<<std::flush;
+	bool ok = d->mImgBuf->write(filename.toStdString());
+	std::cout<<(ok?" ...Done":"...FAILED")<<std::endl;
+	return ok;
 }

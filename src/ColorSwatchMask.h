@@ -16,11 +16,15 @@ public:
 public:
 	void setImageFilePathName	(const QString	&filePathName);
 	void setBackgroundColor		(const QColor	&color);
+	void setOutputAplliedMask	(const bool		&write);
+	void setOutputPatches		(const bool		&write);
 
 	QString getImageFilePathName()	const;
 	bool	haveBackgroundColor()	const;
 	QColor	getBackgroundColor()	const;
 	QImage	getImage()				const;
+	bool	willOutputAplliedMask()	const;
+	bool	willOutputPatches()		const;
 
 public:
 	bool	loadImage();

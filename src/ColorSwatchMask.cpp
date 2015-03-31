@@ -13,6 +13,8 @@ public:
 	QString					mImgMaskFile;
 	std::shared_ptr<QImage>	mImgMask;
 	QColor					mBgColor;
+	bool					mOutputApplied;
+	bool					mOutputPatches;
 };
 
 //---------------------------------------------------------------------
@@ -21,6 +23,8 @@ public:
 ColorSwatchMask::ColorSwatchMask() : d(new Private)
 {
 	d->mImgMask = std::make_shared<QImage>();
+	d->mOutputApplied = false;
+	d->mOutputPatches = false;
 }
 
 ColorSwatchMask::ColorSwatchMask(QString filePathName) : d(new Private)
@@ -44,11 +48,6 @@ bool ColorSwatchMask::loadImage()
 		if(d->mImgMask->format() == QImage::Format_Indexed8)
 			d->mImgMask.reset( new QImage(d->mImgMask->convertToFormat(QImage::Format_ARGB32) ) );
 	}
-
-	/*Uncomment code to save/write image mask converted to ARGB32*/
-	//QString maskFile = QString("mask_argb32.png");
-	//d->mImgMask->save(maskFile);
-	//std::cout<<"Save "<<maskFile.toStdString()<<" ["<<d->mImgMask->width()<<"x"<<d->mImgMask->height()<<"]"<<std::endl;
 	
 	return d->mImgMask->isNull() ? false : true;
 }
@@ -73,23 +72,30 @@ bool ColorSwatchMask::applyMask(QImage* srcImg)
 	painter.end();
 	d->mImgMask.reset( new QImage(maskDest) );
 
-	/*Uncomment code to save/write image with alpha mask filled with patch color from raw image*/
-	//QString maskFile = QString("mask_applied.png");
-	//d->mImgMask->save(maskFile);
-	//std::cout<<"Save "<<maskFile.toStdString()<<" ["<<d->mImgMask->width()<<"x"<<d->mImgMask->height()<<"]"<<std::endl;
+	// save/write image with alpha mask filled with patch color from raw image
+	if(d->mOutputApplied)
+	{
+		QString maskFile = QString("mask_applied.png");
+		d->mImgMask->save(maskFile);
+		std::cout<<"Save "<<maskFile.toStdString()<<" ["<<d->mImgMask->width()<<"x"<<d->mImgMask->height()<<"]"<<std::endl;
+	}
 
 	return result;
 }
 
 //---------------------------------------------------------------------
 
-void ColorSwatchMask::setImageFilePathName		(const QString	&filePathName)	{d->mImgMaskFile = filePathName;}
-void ColorSwatchMask::setBackgroundColor		(const QColor	&color)			{d->mBgColor	 = color;}
+void ColorSwatchMask::setImageFilePathName		(const QString	&filePathName)	{d->mImgMaskFile	= filePathName;}
+void ColorSwatchMask::setBackgroundColor		(const QColor	&color)			{d->mBgColor		= color;}
+void ColorSwatchMask::setOutputAplliedMask		(const bool		&write)			{d->mOutputApplied	= write;}
+void ColorSwatchMask::setOutputPatches			(const bool		&write)			{d->mOutputPatches	= write;}
 
 QImage	ColorSwatchMask::getImage()				const {return d->mImgMask?*d->mImgMask.get():QImage();}
 QString ColorSwatchMask::getImageFilePathName()	const {return d->mImgMaskFile;}
 bool	ColorSwatchMask::haveBackgroundColor()  const {return d->mBgColor.isValid();}
 QColor	ColorSwatchMask::getBackgroundColor()	const {return d->mBgColor.isValid() ? d->mBgColor : QColor(Qt::black);}
+bool	ColorSwatchMask::willOutputAplliedMask()const {return d->mOutputApplied;}
+bool	ColorSwatchMask::willOutputPatches()	const {return d->mOutputPatches;}
 
 //---------------------------------------------------------------------
 

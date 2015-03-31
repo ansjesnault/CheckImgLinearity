@@ -24,7 +24,6 @@ class ColorSwatch::Private
 {
 public:
 	QString	mRawFile;
-	QString	mImgFile;
 
 	std::shared_ptr<ColorSwatchMask>	mMask;
 	QVector<ColorSwatchPatch*>			mPatchesList;
@@ -60,7 +59,6 @@ bool ColorSwatch::loadSettings(QString iniFile)
 
 	// Get files 
 	d->mRawFile		= QString();
-	d->mImgFile		= QString();
 	settings.beginGroup("colorswatch");
 	{
 		QString colorswatchRawfile( settings.value("rawfile").toString() ); // [MANDATORY]
@@ -68,16 +66,6 @@ bool ColorSwatch::loadSettings(QString iniFile)
 			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mRawFile.toStdString() );
 		else
 			result = true;
-
-		if(settings.childKeys().contains("file")) // [OPTIONAL]
-		{
-			QString colorswatchFile( settings.value("file").toString() );
-			if( !QFile::exists( d->mImgFile = QDir::isRelativePath(colorswatchFile) ? iniFilePath.absoluteFilePath(colorswatchFile) : colorswatchFile ) )
-			{
-				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + d->mImgFile.toStdString() );
-				result = false;
-			}
-		}
 	}
 	settings.endGroup();
 
@@ -87,9 +75,9 @@ bool ColorSwatch::loadSettings(QString iniFile)
 	{
 		settings.beginGroup("mask");
 		QString maskFile( settings.value("file").toString() ); // [MANDATORY  if mask section set]
-		if( !QFile::exists( /*d->mImgMaskFile*/maskFile = QDir::isRelativePath(maskFile) ? iniFilePath.absoluteFilePath(maskFile) : maskFile ) )
+		if( !QFile::exists( maskFile = QDir::isRelativePath(maskFile) ? iniFilePath.absoluteFilePath(maskFile) : maskFile ) )
 		{
-			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + /*d->mImgMaskFile*/maskFile.toStdString() );
+			throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] The specified file does not exist : " + maskFile.toStdString() );
 			result = false;
 		}
 		else
@@ -106,6 +94,28 @@ bool ColorSwatch::loadSettings(QString iniFile)
 			}
 			else
 				d->mMask->setBackgroundColor(bgColor);
+		}
+
+		if(settings.childKeys().contains("outputApplied") && d->mMask) // [OPTIONAL]
+		{
+			QString outApplied = settings.value("outputApplied").toString();
+			if( outApplied.contains("ON",Qt::CaseInsensitive) || outApplied.contains("true",Qt::CaseInsensitive) || outApplied.contains("1",Qt::CaseInsensitive) )
+				d->mMask->setOutputAplliedMask(true);
+			else if( outApplied.contains("OFF",Qt::CaseInsensitive) || outApplied.contains("false",Qt::CaseInsensitive) || outApplied.contains("0",Qt::CaseInsensitive) )
+				d->mMask->setOutputAplliedMask(false);
+			else
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] cannot read 'outputApplied'(="+outApplied.toStdString()+"). Values could be ON|on|true|TRUE|1|OFF|off|false|FALSE|0");
+		}
+
+		if(settings.childKeys().contains("outputPatches") && d->mMask) // [OPTIONAL]
+		{
+			QString outApplied = settings.value("outputPatches").toString();
+			if( outApplied.contains("ON",Qt::CaseInsensitive) || outApplied.contains("true",Qt::CaseInsensitive) || outApplied.contains("1",Qt::CaseInsensitive) )
+				d->mMask->setOutputPatches(true);
+			else if( outApplied.contains("OFF",Qt::CaseInsensitive) || outApplied.contains("false",Qt::CaseInsensitive) || outApplied.contains("0",Qt::CaseInsensitive) )
+				d->mMask->setOutputPatches(false);
+			else
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] cannot read 'outputApplied'(="+outApplied.toStdString()+"). Values could be ON|on|true|TRUE|1|OFF|off|false|FALSE|0");
 		}
 
 		settings.endGroup();
@@ -175,7 +185,13 @@ bool ColorSwatch::loadImages()
 						throw std::length_error("["+FILE_LINE_FUNC_STR+"]Image file and mask image haven't the same size! ");
 					}
 					else if(result)
-						d->mMask->applyMask( &d->mImgPlg->toQImage() );
+					{
+						if(!d->mMask->applyMask( &d->mImgPlg->toQImage() ) )
+						{
+							writeImage2QImage();
+							throw std::logic_error("["+FILE_LINE_FUNC_STR+"] Mask aplication FAILED...");
+						}
+					}
 					else
 						throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask loaded but not applied as image file not loaded!");
 				}
@@ -202,11 +218,6 @@ bool ColorSwatch::loadImages()
 QString ColorSwatch::rawFilePathName() const
 {
 	return d->mRawFile;
-}
-
-QString ColorSwatch::imageFilePathName() const
-{
-	return d->mImgFile;
 }
 
 bool ColorSwatch::haveImage() const
@@ -250,8 +261,7 @@ QString ColorSwatch::printMaskInfo() const
 std::ostream& operator<<(std::ostream& stream, const ColorSwatch &colorSwatch)
 {
 	return stream<<"ColorSwatch:\n"
-		<<"["<<(colorSwatch.rawFilePathName().isEmpty()?"-":"X")<<"] Raw image:\t"			<<colorSwatch.imageFilePathName().toStdString()<<"\n"
-		<<"["<<(colorSwatch.imageFilePathName().isEmpty()?"-":"X")	<<"] Other format image:\t"	<<colorSwatch.rawFilePathName().toStdString()<<"\n"
+		<<"["<<(colorSwatch.rawFilePathName().isEmpty()?"-":"X")<<"] Raw image:\t"			<<colorSwatch.rawFilePathName().toStdString()<<"\n"
 		<<colorSwatch.printMaskInfo().toStdString()
 		<<colorSwatch.printPatchesInfo().toStdString();
 }
@@ -335,11 +345,13 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 					QRgb patchRgbaAverage = qRgba(somRed/nbPixels, somGreen/nbPixels, somBlue/nbPixels, somAlpha/nbPixels);
 					patches.push_back( new Patch(patchImg, patchRgbaAverage, col, row) );
 
-					/*Uncomment to save patch QImage in order of detection*/
-					//QString patchFile = QString("patch_%1.png").arg(i++);
-					//patchImg->save(patchFile);
-					//std::cout<<"Save "<<patchFile.toStdString()<<" ["<<patchImg->width()<<"x"<<patchImg->height()<<"]";
-					//std::cout<<std::endl;
+					// save patch QImage in order of detection
+					if(d->mMask->willOutputPatches())
+					{
+						QString patchFile = QString("patch_%1.png").arg(i++);
+						patchImg->save(patchFile);
+						std::cout<<"Saved patch (in order of detection):"<<patchFile.toStdString()<<" ["<<patchImg->width()<<"x"<<patchImg->height()<<"]"<<std::endl;;
+					}
 				}
 			}
 		}
@@ -354,7 +366,10 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 		} ); // from black (0) to white (255)
 
 	if(patches.size() != d->mPatchesList.size())
+	{
+		writeImage2QImage();
 		throw std::length_error("["+FILE_LINE_FUNC_STR+"] Detected patches are not equal to number of provided patches reflectance ("+(patches.size() < d->mPatchesList.size() ? "<)" : ">)") );
+	}
 
 	for(int i=0; i<patches.size(); i++)
 		if(d->mPatchesList.size() >= i)
@@ -432,3 +447,14 @@ ColorSwatch::GraphData2D ColorSwatch::getGraphData(DATA datalist)
 }
 
 //---------------------------------------------------------------------
+
+void ColorSwatch::writeImage2QImage()
+{
+	// save/write image mask converted to ARGB32 to help see what happened
+	if(!d->mMask->getImage().isNull())
+	{
+		QString maskFile = QString("mask_argb32.png");
+		d->mMask->getImage().save(maskFile);
+		std::cout<<"Save "<<maskFile.toStdString()<<" ["<<d->mMask->getImage().width()<<"x"<<d->mMask->getImage().height()<<"]"<<std::endl;
+	}
+}
