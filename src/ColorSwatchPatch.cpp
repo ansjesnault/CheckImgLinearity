@@ -87,7 +87,12 @@ bool ColorSwatchPatch::computeAverageRGBpixel(ImagePlugin* imgPlg)
 	d->mAverageRGB.setRedF(r);
 	d->mAverageRGB.setGreenF(g);
 	d->mAverageRGB.setBlueF(b);
-	d->mAverageRGB.setAlphaF(a);
+	if(0.0f < a < 1.0f)
+		d->mAverageRGB.setAlphaF(a);
+
+	// print average float R G B
+	//std::cout<<"av("<<d->mAverageRGB.redF()<<","<<d->mAverageRGB.greenF()<<","<<d->mAverageRGB.blueF()<<")"<<std::endl;
+
 	return result;
 }
 

@@ -73,6 +73,30 @@ QSize ImagePluginQt::size()
 
 //---------------------------------------------------------------------
 
+float ImagePluginQt::readSinglePixelChannel(int x, int y, int channel)
+{
+	if(!d->mQimg)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Cannot continue without a valid QImage loaded."<<std::endl;
+		return false;
+	}
+	if(d->mQimg->valid(x, y))
+	{
+		QRgb pix = d->mQimg->pixel(x,y);
+		switch(channel)
+		{
+		case 0:		return qRed(pix)/255.0f;	break;
+		case 1:		return qGreen(pix)/255.0f;	break;
+		case 2:		return qBlue(pix)/255.0f;	break;
+		case 3:		return qAlpha(pix)/255.0f;	break;
+		default:	return 0.0f;
+		}
+	}
+	return 0.0f;
+}
+
+//---------------------------------------------------------------------
+
 bool ImagePluginQt::averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a)
 {
 	if(!d->mQimg)
@@ -339,6 +363,25 @@ QSize ImagePluginOIIO::size()
 		return QSize();
 	}
 	return QSize(d->mImgBuf->spec().width, d->mImgBuf->spec().height);
+}
+
+//---------------------------------------------------------------------
+
+float ImagePluginOIIO::readSinglePixelChannel(int x, int y, int channel)
+{
+	if(d->mImgBuf == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		return false;
+	}
+
+	if(!d->mImgBuf->initialized())
+		d->mImgBuf->read(0, 0, true, TypeDesc::BASETYPE::FLOAT);
+
+	int nc = d->mImgBuf->nchannels();
+	float* pixel = OIIO_ALLOCA(float,nc);
+	d->mImgBuf->getpixel(x, y, pixel);
+	return pixel[channel];
 }
 
 //---------------------------------------------------------------------

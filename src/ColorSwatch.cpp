@@ -93,16 +93,27 @@ bool ColorSwatch::loadSettings(QString iniFile)
 				result = false;
 			}
 			else
-				d->mMask->setBackgroundColor(bgColor);
+				d->mMask->backgroundColor(bgColor);
+		}
+
+		if(settings.childKeys().contains("applyAlphaMask") && d->mMask) // [OPTIONAL]
+		{
+			QString outApplied = settings.value("applyAlphaMask").toString();
+			if( outApplied.contains("ON",Qt::CaseInsensitive) || outApplied.contains("true",Qt::CaseInsensitive) || outApplied.contains("1",Qt::CaseInsensitive) )
+				d->mMask->apllyAlphaMask(true);
+			else if( outApplied.contains("OFF",Qt::CaseInsensitive) || outApplied.contains("false",Qt::CaseInsensitive) || outApplied.contains("0",Qt::CaseInsensitive) )
+				d->mMask->apllyAlphaMask(false);
+			else
+				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] cannot read 'outputApplied'(="+outApplied.toStdString()+"). Values could be ON|on|true|TRUE|1|OFF|off|false|FALSE|0");
 		}
 
 		if(settings.childKeys().contains("outputApplied") && d->mMask) // [OPTIONAL]
 		{
 			QString outApplied = settings.value("outputApplied").toString();
 			if( outApplied.contains("ON",Qt::CaseInsensitive) || outApplied.contains("true",Qt::CaseInsensitive) || outApplied.contains("1",Qt::CaseInsensitive) )
-				d->mMask->setOutputAplliedMask(true);
+				d->mMask->outputAplliedMask(true);
 			else if( outApplied.contains("OFF",Qt::CaseInsensitive) || outApplied.contains("false",Qt::CaseInsensitive) || outApplied.contains("0",Qt::CaseInsensitive) )
-				d->mMask->setOutputAplliedMask(false);
+				d->mMask->outputAplliedMask(false);
 			else
 				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] cannot read 'outputApplied'(="+outApplied.toStdString()+"). Values could be ON|on|true|TRUE|1|OFF|off|false|FALSE|0");
 		}
@@ -111,9 +122,9 @@ bool ColorSwatch::loadSettings(QString iniFile)
 		{
 			QString outApplied = settings.value("outputPatches").toString();
 			if( outApplied.contains("ON",Qt::CaseInsensitive) || outApplied.contains("true",Qt::CaseInsensitive) || outApplied.contains("1",Qt::CaseInsensitive) )
-				d->mMask->setOutputPatches(true);
+				d->mMask->outputPatches(true);
 			else if( outApplied.contains("OFF",Qt::CaseInsensitive) || outApplied.contains("false",Qt::CaseInsensitive) || outApplied.contains("0",Qt::CaseInsensitive) )
-				d->mMask->setOutputPatches(false);
+				d->mMask->outputPatches(false);
 			else
 				throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] cannot read 'outputApplied'(="+outApplied.toStdString()+"). Values could be ON|on|true|TRUE|1|OFF|off|false|FALSE|0");
 		}
@@ -184,16 +195,17 @@ bool ColorSwatch::loadImages()
 						std::cerr<<resolComp.toStdString()<<std::endl;
 						throw std::length_error("["+FILE_LINE_FUNC_STR+"]Image file and mask image haven't the same size! ");
 					}
-					else if(result)
+					else if( result && d->mMask->apllyAlphaMask() )
 					{
 						if(!d->mMask->applyMask( &d->mImgPlg->toQImage() ) )
 						{
 							writeImage2QImage();
 							throw std::logic_error("["+FILE_LINE_FUNC_STR+"] Mask aplication FAILED...");
 						}
+						else
+							std::cout<<"Mask loaded and applied it to the image."<<std::endl;
 					}
-					else
-						throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask loaded but not applied as image file not loaded!");
+					std::cout<<"Mask loaded wihtout applying it to the image."<<std::endl;
 				}
 				else
 					throw std::invalid_argument("["+FILE_LINE_FUNC_STR+"] Mask image cannot be loaded!");
@@ -288,8 +300,8 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 
 	QRgb maxRgba = clrMap.key(maxRgbCount);
 	if( !d->mMask->haveBackgroundColor() )	
-		d->mMask->setBackgroundColor( QColor(maxRgba) );
-	else if(QRgb curBgRgba = d->mMask->getBackgroundColor().rgba() != maxRgba)
+		d->mMask->backgroundColor( QColor(maxRgba) );
+	else if(QRgb curBgRgba = d->mMask->backgroundColor().rgba() != maxRgba)
 		std::cerr<<"WARNING: ["+FILE_LINE_FUNC_STR+"] Dectected background ("<<qRed(maxRgba)<<","<<qGreen(maxRgba)<<","<<qBlue(maxRgba)<<","<<qAlpha(maxRgba)<<")"
 				<<"	is not the one provided in settings [default use] ("<<qRed(curBgRgba)<<","<<qGreen(curBgRgba)<<","<<qBlue(curBgRgba)<<","<<qAlpha(curBgRgba)<<")"
 				<<std::endl;
@@ -306,7 +318,7 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 		int		mRelPixXbegin , mRelPixYbegin;
 	};
 	QVector<Patch*> patches;
-	QRgb			bgRgb = d->mMask->getBackgroundColor().rgba();
+	QRgb			bgRgb = d->mMask->backgroundColor().rgba();
 	QImage			mask = d->mMask->getImage();
 	unsigned int i = 0;
 	for( int row = 0; row < mask.height(); row++ )
@@ -324,7 +336,8 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 					while ( mask.pixel(col		, maxRow) != bgRgb ) { maxRow++; }
 					while ( mask.pixel(maxCol	, row	) != bgRgb ) { maxCol++; }
 					QImage* patchImg = new QImage( maxCol-col, maxRow-row,QImage::Format_RGB32);
-					int somRed = 0, somGreen = 0, somBlue = 0, somAlpha = 0, nbPixels = 0;
+					float somRed = 0.0f, somGreen = 0.0f, somBlue = 0.0f, somAlpha = 0.0f;
+					int nbPixels = 0;
 					for(int r=0, localRow = row; localRow < maxRow; localRow++, r++ )
 					{
 						for(int c=0, localCol = col; localCol < maxCol; localCol++, c++ )
@@ -332,21 +345,38 @@ bool ColorSwatch::fillPatchesPixelsFromMask()
 							QRgb val = mask.pixel(localCol, localRow);
 							if( val != bgRgb ) // in case the mask is not really an aligned square
 							{
-								somRed	 += qRed(val);
-								somGreen += qGreen(val);
-								somBlue	 += qBlue(val);
-								somAlpha += qAlpha(val);
+								//somRed	 += qRed(val);
+								//somGreen += qGreen(val);
+								//somBlue	 += qBlue(val);
+								//somAlpha += qAlpha(val);
+
 								nbPixels ++;
+								float pixRed = d->mImgPlg->readSinglePixelChannel(localCol, localRow, 0);
+								somRed += pixRed;
+
+								float pixGreen = d->mImgPlg->readSinglePixelChannel(localCol, localRow, 1);
+								somGreen += pixGreen;
+
+								float pixBlue = d->mImgPlg->readSinglePixelChannel(localCol, localRow, 2);
+								somBlue += pixBlue; 
+
+								QColor clr;
+								clr.setRedF(pixRed);
+								clr.setGreenF(pixGreen);
+								clr.setBlueF(pixBlue);
+
+								val = clr.rgb();
+
 								patchImg->setPixel(c,r,val);
 								mask.setPixel(localCol, localRow, bgRgb);
 							}
 						}
 					}
-					QRgb patchRgbaAverage = qRgba(somRed/nbPixels, somGreen/nbPixels, somBlue/nbPixels, somAlpha/nbPixels);
+					QRgb patchRgbaAverage = qRgba((somRed/nbPixels)*255.0f, (somGreen/nbPixels)*255.0f, (somBlue/nbPixels)*255.0f, (somAlpha/nbPixels)*255.0f);
 					patches.push_back( new Patch(patchImg, patchRgbaAverage, col, row) );
 
 					// save patch QImage in order of detection
-					if(d->mMask->willOutputPatches())
+					if(d->mMask->outputPatches())
 					{
 						QString patchFile = QString("patch_%1.png").arg(i++);
 						patchImg->save(patchFile);

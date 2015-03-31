@@ -15,6 +15,7 @@ public:
 	QColor					mBgColor;
 	bool					mOutputApplied;
 	bool					mOutputPatches;
+	bool					mApllyAlphaMask;
 };
 
 //---------------------------------------------------------------------
@@ -25,6 +26,7 @@ ColorSwatchMask::ColorSwatchMask() : d(new Private)
 	d->mImgMask = std::make_shared<QImage>();
 	d->mOutputApplied = false;
 	d->mOutputPatches = false;
+	d->mApllyAlphaMask	  = true;
 }
 
 ColorSwatchMask::ColorSwatchMask(QString filePathName) : d(new Private)
@@ -85,17 +87,19 @@ bool ColorSwatchMask::applyMask(QImage* srcImg)
 
 //---------------------------------------------------------------------
 
-void ColorSwatchMask::setImageFilePathName		(const QString	&filePathName)	{d->mImgMaskFile	= filePathName;}
-void ColorSwatchMask::setBackgroundColor		(const QColor	&color)			{d->mBgColor		= color;}
-void ColorSwatchMask::setOutputAplliedMask		(const bool		&write)			{d->mOutputApplied	= write;}
-void ColorSwatchMask::setOutputPatches			(const bool		&write)			{d->mOutputPatches	= write;}
+void ColorSwatchMask::setImageFilePathName	(const QString	&filePathName)	{d->mImgMaskFile	= filePathName;}
+void ColorSwatchMask::backgroundColor		(const QColor	&color)			{d->mBgColor		= color;}
+void ColorSwatchMask::outputAplliedMask		(const bool		&write)			{d->mOutputApplied	= write;}
+void ColorSwatchMask::outputPatches			(const bool		&write)			{d->mOutputPatches	= write;}
+void ColorSwatchMask::apllyAlphaMask		(const bool		&apply)			{d->mApllyAlphaMask = apply;}
 
 QImage	ColorSwatchMask::getImage()				const {return d->mImgMask?*d->mImgMask.get():QImage();}
 QString ColorSwatchMask::getImageFilePathName()	const {return d->mImgMaskFile;}
 bool	ColorSwatchMask::haveBackgroundColor()  const {return d->mBgColor.isValid();}
-QColor	ColorSwatchMask::getBackgroundColor()	const {return d->mBgColor.isValid() ? d->mBgColor : QColor(Qt::black);}
-bool	ColorSwatchMask::willOutputAplliedMask()const {return d->mOutputApplied;}
-bool	ColorSwatchMask::willOutputPatches()	const {return d->mOutputPatches;}
+QColor	ColorSwatchMask::backgroundColor()		const {return d->mBgColor.isValid() ? d->mBgColor : QColor(Qt::black);}
+bool	ColorSwatchMask::outputAplliedMask()	const {return d->mOutputApplied;}
+bool	ColorSwatchMask::outputPatches()		const {return d->mOutputPatches;}
+bool	ColorSwatchMask::apllyAlphaMask()		const {return d->mApllyAlphaMask;}
 
 //---------------------------------------------------------------------
 
@@ -103,9 +107,9 @@ std::ostream& operator<<(std::ostream& stream, const ColorSwatchMask &mask)
 {
 	return stream<<"\t["<<(mask.getImageFilePathName().isEmpty()?"-":"X")<<"] Mask image:\t"<<mask.getImageFilePathName().toStdString()<<"\n"
 		<<"\t["<<(mask.getImage().isNull()?"-] NOT":"X]")<<" loaded\n"
-		<<"\t["<<(mask.getBackgroundColor().isValid()?"X":"-")<<"] Background color:\t("
-			<<mask.getBackgroundColor().redF()	<<"; "
-			<<mask.getBackgroundColor().greenF()<<"; "
-			<<mask.getBackgroundColor().blueF()	<<"; "
-			<<mask.getBackgroundColor().alphaF()<<")\n";
+		<<"\t["<<(mask.backgroundColor().isValid()?"X":"-")<<"] Background color:\t("
+			<<mask.backgroundColor().redF()	<<"; "
+			<<mask.backgroundColor().greenF()<<"; "
+			<<mask.backgroundColor().blueF()	<<"; "
+			<<mask.backgroundColor().alphaF()<<")\n";
 }

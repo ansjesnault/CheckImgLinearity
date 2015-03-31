@@ -26,6 +26,8 @@ public:
 	/// Get the image resolution
 	virtual QSize	size() = 0;
 
+	virtual float readSinglePixelChannel(int x, int y, int channel) = 0;
+
 	/// Get the averages pixel channels given a list of pixel coord x,y
 	virtual bool averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a) = 0;
 
@@ -48,6 +50,7 @@ public:
 	virtual bool	loadImage(QString filename);
 	virtual QImage	toQImage();
 	virtual QSize	size();
+	virtual float	readSinglePixelChannel(int x, int y, int channel);
 	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a);
 	virtual bool	save(QString filename);
 
@@ -71,6 +74,7 @@ public:
 	virtual bool	loadImage(QString filename);
 	virtual QImage	toQImage();
 	virtual QSize	size();
+	virtual float	readSinglePixelChannel(int x, int y, int channel);
 	virtual bool	averagesChannels(pixelsCoords pixCoords, float &r, float &g, float &b, float &a);
 	virtual bool	save(QString filename);
 
