@@ -230,8 +230,36 @@ void SwatchMainWindow::keyPressEvent(QKeyEvent * event)
 	switch(event->key())
 	{
 	case Qt::Key::Key_Escape : this->close(); break;
+	case Qt::Key::Key_C :
+		{
+			if(d->mImgPlg->withColorSpaceHandler())
+			{
+				static int currentClrSpID = 0;
+				QStringList clrSpaceNames;		// available OIIO ColorSpace names
+				clrSpaceNames<<"Linear"<<"sRGB"<<"GammaCorrected"<<"AdobeRGB"<<"Rec709"<<"KodakLog";
+				if( currentClrSpID >= clrSpaceNames.length())
+					currentClrSpID = 0;
+				else
+					currentClrSpID++; // increment or reinit switch ID
+				if( d->mImgPlg->toColorSpace(clrSpaceNames[currentClrSpID]) )
+				{
+					d->mUi->label->setPixmap( QPixmap::fromImage( d->mImgPlg->toQImage().scaled(d->mUi->label->size(),Qt::KeepAspectRatio) ) ); // display again as QImage
+					d->mUi->statusBar->showMessage(clrSpaceNames[currentClrSpID]+" ColorSpace conversion.");
+				}
+				else
+					d->mUi->statusBar->showMessage("Cannot convert to "+clrSpaceNames[currentClrSpID]+" ColorSpace.");
+			}
+			else
+				std::cout<<"Current image plugin doesn't handle ColorSapce conversion."<<std::endl;
+			break;
+		}
 	default:
-		break;
+		{
+			std::string str = "ColorSpace feature not available for this ImageSDK";
+			std::cout<<str.c_str()<<std::endl;
+			d->mUi->statusBar->showMessage(QString(str.c_str()));
+			break;
+		}
 	}
 	QMainWindow::keyPressEvent(event);
 }

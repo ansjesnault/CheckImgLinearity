@@ -96,6 +96,31 @@ else()
 	include_directories(${OPENIMAGEIO_INCLUDE_DIR})
 endif()
 
+## Boost
+find_package(Boost REQUIRED COMPONENTS thread system chrono) ## to use imagebufalgo of OIIO
+if(Boost_FOUND OR BOOST_FOUND)
+    include_directories(${BOOST_INCLUDEDIR} ${Boost_INCLUDE_DIRS})
+    link_directories(${BOOST_LIBRARYDIR} ${Boost_LIBRARY_DIRS})
+    if(WIN32)
+        add_definitions(-DBOOST_ALL_DYN_LINK -DBOOST_ALL_NO_LIB)
+    endif()
+endif()
+
+## IlmBase
+set(ILMBASE_HOME "" CACHE PATH "OPENEXR install dir")
+find_package (IlmBase REQUIRED)
+include_directories ("${ILMBASE_INCLUDE_DIR}")
+include_directories ("${ILMBASE_INCLUDE_DIR}/OpenEXR")
+
+## OpenEXR
+set(OPENEXR_HOME "" CACHE PATH "OPENEXR install dir")
+find_package (OpenEXR REQUIRED)
+if (EXISTS "${OPENEXR_INCLUDE_DIR}/OpenEXR/ImfMultiPartInputFile.h")
+    add_definitions (-DUSE_OPENEXR_VERSION2=1)
+endif()
+include_directories ("${OPENEXR_INCLUDE_DIR}")
+include_directories ("${OPENEXR_INCLUDE_DIR}/OpenEXR")
+
 
 ## Prepare external qcustomplot 3rdParty (optional different way)
 set(QCP_PREFIX "${CMAKE_BINARY_DIR}/external/qcustomplot")
@@ -212,7 +237,9 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} 
 	Qt5::Widgets Qt5::PrintSupport
     ${QCUSTOMPLOT_LIBRARIES}
-	${OPENIMAGEIO_LIBRARIES}
+	${OPENIMAGEIO_LIBRARIES} 
+    ${Boost_LIBRARIES}
+    ${OPENEXR_LIBRARIES} ${ILMBASE_LIBRARIES}
 )
 
 if(TARGET qcustomplot)

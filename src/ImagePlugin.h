@@ -8,12 +8,25 @@
 
 class ImagePlugin
 {
+protected:
+	/// it's up to the sub class to internaly activate this option
+	QString mColorSpace;
+
 public:
 	typedef std::pair<int,int>		pixelCoord;
 	typedef std::vector<pixelCoord> pixelsCoords;
 	static	pixelCoord makePixelCoord(int x, int y){return std::make_pair(x, y);}
 
-public:    
+public:
+	bool	withColorSpaceHandler()	{return mColorSpace.isEmpty() ? false : true;}
+	QString	colorSpace()			{return mColorSpace;}
+	bool	toColorSpace(QString colorSpaceName) {mColorSpace=colorSpaceName; return colorSpaceConversion();}
+
+protected:
+	/// need to be overloaded by subclass supporting colorspace and should use mColorSpace
+	virtual bool colorSpaceConversion() {return false;}
+
+public:
     /// Use as filter menu on Open (example: 'Image (*.png *.jpg *.bmp)')
     virtual QString getImageFilterExtensions() = 0;
     
@@ -67,6 +80,9 @@ class ImagePluginOIIO : public ImagePlugin
 public:
 	ImagePluginOIIO();
 	virtual ~ImagePluginOIIO();
+
+protected:
+	virtual bool colorSpaceConversion();
 
 public:
     /// create filter string for all formats supported by QImage

@@ -187,9 +187,10 @@ bool ImagePluginQt::save(QString filename)
 //---------   ImagePluginOIIO  ----------------------------------------
 //---------------------------------------------------------------------
 
+#include <OpenImageIO/platform.h> // for pixel allocation
 #include <OpenImageIO/imageio.h>
 #include <OpenImageIO/imagebuf.h>
-#include <OpenImageIO/platform.h> // for pixel allocation
+#include <OpenImageIO/imagebufalgo.h>
 
 OIIO_NAMESPACE_USING;
 
@@ -197,7 +198,7 @@ class ImagePluginOIIO::Private
 {
 public:
 	std::string					mCurrentFileName;
-	std::unique_ptr<ImageBuf>	mImgBuf;
+	std::shared_ptr<ImageBuf>	mImgBuf;
 	std::shared_ptr<QImage>		mQimg;
 };
 
@@ -207,6 +208,8 @@ ImagePluginOIIO::ImagePluginOIIO()
 	: ImagePlugin()
 	, d(new Private)
 {
+	//activate default ColorSpace (mean this class handle/impl toColorSpace function)
+	mColorSpace="Linear";
 }
 
 ImagePluginOIIO::~ImagePluginOIIO() 
@@ -265,8 +268,8 @@ QImage ImagePluginOIIO::toQImage()
 
 	bool useNative = false;
 	ImageSpec spec = (useNative ? d->mImgBuf->nativespec() : d->mImgBuf->spec());
-	std::cout<<"file format name :"<<d->mImgBuf->file_format_name()<<std::endl;
-	std::cout<<(useNative?"native format ":"format ")<<spec.format<<std::endl;
+	//std::cout<<"file format name :"<<d->mImgBuf->file_format_name()<<std::endl;
+	//std::cout<<(useNative?"native format ":"format ")<<spec.format<<std::endl;
 	if(spec.nchannels < 3)
 	{
 		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]Only channels numbers > 3 is allowed for QImage conversion...abort."<<std::endl;
@@ -329,7 +332,7 @@ QImage ImagePluginOIIO::toQImage()
 		}
 	default:
 		{
-			std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]"<<spec.format<<" format is not yet handled here. Try forcing float format."<<std::endl;
+			std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] "<<spec.format<<" format is not yet handled here. Try forcing float format."<<std::endl;
 			d->mImgBuf->reset(d->mCurrentFileName);
 			if(d->mImgBuf->read(0, 0, true, TypeDesc::BASETYPE::FLOAT)) // force FLOAT buffer convertion
 			{
@@ -371,7 +374,7 @@ float ImagePluginOIIO::readSinglePixelChannel(int x, int y, int channel)
 {
 	if(d->mImgBuf == nullptr)
 	{
-		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] image not loaded...abort."<<std::endl;
 		return false;
 	}
 
@@ -390,13 +393,13 @@ bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &
 {
 	if(d->mImgBuf == nullptr)
 	{
-		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] image not loaded...abort."<<std::endl;
 		return false;
 	}
 	
 	if(!d->mImgBuf->read(0,0,false,TypeDesc::FLOAT))
 	{
-		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image buffer can't read image...abort."<<std::endl;
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] image buffer can't read image...abort."<<std::endl;
 		return false;
 	}
 
@@ -421,16 +424,71 @@ bool ImagePluginOIIO::averagesChannels(pixelsCoords pixCoords, float &r, float &
 
 //---------------------------------------------------------------------
 
-
 bool ImagePluginOIIO::save(QString filename)
 {
 	if(d->mImgBuf == nullptr)
 	{
-		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"]image not loaded...abort."<<std::endl;
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] image not loaded...abort."<<std::endl;
 		return false;
 	}
 	std::cout<<"Saving QImage: "<<filename.toStdString()<<std::flush;
 	bool ok = d->mImgBuf->write(filename.toStdString());
 	std::cout<<(ok?" ...Done":"...FAILED")<<std::endl;
 	return ok;
+}
+
+//---------------------------------------------------------------------
+
+bool ImagePluginOIIO::colorSpaceConversion()
+{
+	if(d->mImgBuf == nullptr)
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] image not loaded...abort."<<std::endl;
+		return false;
+	}
+	if(mColorSpace == "Linear"			|| 
+		mColorSpace == "sRGB"			||
+		mColorSpace == "GammaCorrected" ||
+		mColorSpace == "AdobeRGB"		||
+		mColorSpace == "Rec709"			|| 
+		mColorSpace == "KodakLog"		)
+	{
+		if(d->mImgBuf->spec().get_string_attribute("oiio:ColorSpace") != mColorSpace.toStdString())
+		{
+			std::shared_ptr<ImageBuf> ccSrc (d->mImgBuf); // color-corrected buffer
+			if (d->mImgBuf->spec().format != TypeDesc::FLOAT) 
+			{
+				// If the original src buffer isn't float, make a scratch space that is float.
+				ImageSpec floatSpec = d->mImgBuf->spec();
+				floatSpec.set_format (TypeDesc::FLOAT);
+				ccSrc.reset (new ImageBuf (floatSpec));
+			}
+			ccSrc->read(0,0,true,TypeDesc::FLOAT);
+			ImageBufAlgo::colorconvert(*ccSrc, *d->mImgBuf, "current", mColorSpace.toStdString() );
+			
+			if(ccSrc->has_error())
+				std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] color-corrected buffer error: "<<ccSrc->geterror()<<std::endl;
+			if(d->mImgBuf->has_error())
+				std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] mImgBuf buffer error: "<<d->mImgBuf->geterror()<<std::endl;
+			
+			std::swap(d->mImgBuf, ccSrc);
+
+			d->mImgBuf->write("imgBuf.CR2");
+			d->mImgBuf->write("imgBuf.png");
+			ccSrc->write("ccSrc.CR2");
+			ccSrc->write("ccSrc.png");
+
+			return true;
+		}
+		else
+		{
+			std::cout<<"["<<FILE_LINE_FUNC_STR<<"] no need colorspace conversion, current one is: ["<<mColorSpace.toStdString()<<"]"<<std::endl;
+			return false;
+		}
+	}
+	else
+	{
+		std::cerr<<"["<<FILE_LINE_FUNC_STR<<"] colorspace destination name ["<<mColorSpace.toStdString()<<"] is not handled"<<std::endl;
+		return false;
+	}
 }
