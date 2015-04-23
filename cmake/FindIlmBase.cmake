@@ -86,13 +86,13 @@ macro (PREFIX_FIND_LIB prefix libname libpath_var liblist_var cachelist_var)
   find_library(${tmp_prefix}_LIBRARY_RELEASE
     NAMES ${libname} ${libnameVersion}
     HINTS ${${libpath_var}}
-    PATH_SUFFIXES lib
+    PATH_SUFFIXES lib64 lib
     ${ILMBASE_FIND_OPTIONS}
   )
   find_library(${tmp_prefix}_LIBRARY_DEBUG
     NAMES ${libname}d ${libname}_d ${libname}debug ${libname}_debug
     HINTS ${${libpath_var}}
-    PATH_SUFFIXES lib
+    PATH_SUFFIXES lib64 lib
     ${ILMBASE_FIND_OPTIONS}
   )
   # Properly define ${tmp_prefix}_LIBRARY (cached) and ${tmp_prefix}_LIBRARIES
@@ -146,9 +146,11 @@ set (IlmBase_generic_library_paths
 if (ILMBASE_HOME)
   if (ILMBASE_VERSION)
     set (IlmBase_include_paths
+      ${ILMBASE_HOME}
       ${ILMBASE_HOME}/ilmbase-${ILMBASE_VERSION}/include
       ${ILMBASE_HOME}/include/ilmbase-${ILMBASE_VERSION})
     set (IlmBase_library_paths
+      ${ILMBASE_HOME}
       ${ILMBASE_HOME}/ilmbase-${ILMBASE_VERSION}/lib
       ${ILMBASE_HOME}/lib/ilmbase-${ILMBASE_VERSION})
   endif()

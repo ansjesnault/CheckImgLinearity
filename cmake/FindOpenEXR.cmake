@@ -75,13 +75,13 @@ macro (PREFIX_FIND_LIB prefix libname libpath_var liblist_var cachelist_var)
   find_library(${tmp_prefix}_LIBRARY_RELEASE
     NAMES ${libname} ${libname}-${_ILMBASE_VERSION}
     HINTS ${${libpath_var}}
-    PATH_SUFFIXES lib
+    PATH_SUFFIXES lib64 lib
     ${OPENEXR_FIND_OPTIONS}
   )
   find_library(${tmp_prefix}_LIBRARY_DEBUG
     NAMES ${libname}d ${libname}_d ${libname}debug ${libname}_debug
     HINTS ${${libpath_var}}
-    PATH_SUFFIXES lib
+    PATH_SUFFIXES lib64 lib
     ${OPENEXR_FIND_OPTIONS}
   )
   # Properly define ${tmp_prefix}_LIBRARY (cached) and ${tmp_prefix}_LIBRARIES

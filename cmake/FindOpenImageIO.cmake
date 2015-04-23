@@ -81,7 +81,7 @@ foreach(tool ${OPENIMAGEIO_TOOLS})
 	find_program(OPENIMAGEIO_${TOOL_UC}_CMD 
 		NAMES 			${tool}
 		PATHS			${_openimageio_SEARCH_DIRS}
-		PATH_SUFFIXES 	bin
+		PATH_SUFFIXES 	bin lib64 lib
 	)
 	mark_as_advanced(OPENIMAGEIO_${TOOL_UC}_CMD)
 endforeach()
