@@ -32,6 +32,10 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+if(POLICY CMP0020)
+	cmake_policy(SET CMP0020 NEW) ## auto link to qtmain under windows
+endif()
+
 ## FIND PACKAGES
 
 ## Qt5
@@ -83,9 +87,6 @@ if(NOT Qt5_FOUND)
 elseif(WIN32 AND "${QT_VERSION_MAJOR}.${QT_VERSION_MINOR}.${QT_VERSION_PATCH}" MATCHES "5.2.1")
     message(WARNING "Be careful, there were bugs on 5.2.1 win32 version : http://stackoverflow.com/questions/14008737/qt5-qconfig-h-weird")
 endif()
-if(POLICY CMP0020)
-	cmake_policy(SET CMP0020 NEW) ## auto link to qtmain under windows
-endif()
 
 
 ## OpenImageIO
@@ -96,7 +97,7 @@ else()
 	include_directories(${OPENIMAGEIO_INCLUDE_DIR})
 endif()
 
-## Boost
+## Boost (needed by oiio)
 find_package(Boost REQUIRED COMPONENTS thread system chrono) ## to use imagebufalgo of OIIO
 if(Boost_FOUND OR BOOST_FOUND)
     include_directories(${BOOST_INCLUDEDIR} ${Boost_INCLUDE_DIRS})
@@ -106,13 +107,13 @@ if(Boost_FOUND OR BOOST_FOUND)
     endif()
 endif()
 
-## IlmBase
+## IlmBase (needed by oiio)
 set(ILMBASE_HOME "" CACHE PATH "OPENEXR install dir")
 find_package (IlmBase REQUIRED)
 include_directories ("${ILMBASE_INCLUDE_DIR}")
 include_directories ("${ILMBASE_INCLUDE_DIR}/OpenEXR")
 
-## OpenEXR
+## OpenEXR (needed by oiio)
 set(OPENEXR_HOME "" CACHE PATH "OPENEXR install dir")
 find_package (OpenEXR REQUIRED)
 if (EXISTS "${OPENEXR_INCLUDE_DIR}/OpenEXR/ImfMultiPartInputFile.h")
@@ -139,7 +140,15 @@ macro(AS_EXTERNAL type)
         ${DL_TYPE_ARG}
 		PATCH_COMMAND   ${GIT_EXECUTABLE} apply "${CMAKE_SOURCE_DIR}/external/QCustomPlot.patch"
         INSTALL_DIR     ${QCP_PREFIX}/install
-        CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=${QCP_PREFIX}/install -DQt5_DIR=${Qt5_DIR} -DBUID_FROM_AMALGAMATE=${FROM_AMALGAMATE} -DBUILD_SHARED=OFF
+        CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=${QCP_PREFIX}/install
+                        -DQt5_DIR=${Qt5_DIR}
+                        -DBUID_FROM_AMALGAMATE=${FROM_AMALGAMATE}
+                        -DBUILD_SHARED=OFF
+    )
+    ExternalProject_Get_Property(qcustomplot SOURCE_DIR)
+    ExternalProject_Add_Step(qcustomplot rmCMakeLists 
+        COMMAND     ${CMAKE_COMMAND} -E remove -f ${SOURCE_DIR}/CMakeLists.txt
+        DEPENDERS   patch
     )
     set(QCustomPlot_DIR ${QCP_PREFIX}/install CACHE PATH "" FORCE)
     ## we already know in advance where are include and lib
@@ -149,7 +158,7 @@ macro(AS_EXTERNAL type)
     
 endmacro()
 set(QCustomPlot_BUILD AS_EXTERNAL_GIT CACHE STRING "which way we build qcustomplot")
-set_property(CACHE QCustomPlot_BUILD PROPERTY STRINGS AS_EXTERNAL_GIT AS_EXTERNAL_ZIP AS_LOCAL AS_EMBEDED)
+set_property(CACHE QCustomPlot_BUILD PROPERTY STRINGS AS_EXTERNAL_GIT AS_EXTERNAL_ZIP AS_FIND_PACKAGE AS_EMBEDED)
 if(${QCustomPlot_BUILD} MATCHES "AS_EXTERNAL_GIT")      ## use External_Project from public git url (master branch)
     
     AS_EXTERNAL(GIT)
@@ -229,7 +238,7 @@ set(SOURCES
 QT5_WRAP_UI(UIS_HDRS src/mainwindow.ui)
 
 add_executable(${PROJECT_NAME} 
-    #WIN32 
+    #WIN32 ## uncomment to hide terminal
     ${SOURCES}
     ${UIS_HDRS}
 )
