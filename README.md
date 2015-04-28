@@ -6,11 +6,16 @@ Utility allowing to load a raw image of a color swatch (color chart) with a give
 If any transformation has been applied (automatic filter/gamma correction...), then the outputted graph (qcustomPlot on right side of the image) will be not linear.  
 So this application is allow to validate which image SDK is able to process raw images and convert it keeping linearity.  
 A simple interface should by used/implemented in ordre to add any other image SDK (like ImageMagick...).  
-This project should build under linux and mac (not yet tested).  
+
+This project use C++11 (build under MSVC11 and after) and should build under linux and mac (not yet tested).  
 
 # Brainstorming
 ![ScreenShot](https://raw.github.com/ejerome/CheckImgLinearity/master/doc/ChkImgLin_bootstrap_design.JPG)
 ![ScreenShot](https://raw.github.com/ejerome/CheckImgLinearity/master/doc/ChkImgLin_bool_result.JPG)
+
+# Results
+![ScreenShot](https://raw.github.com/ejerome/CheckImgLinearity/master/doc/CheckImgLinearityJPG.png)
+![ScreenShot](https://raw.github.com/ejerome/CheckImgLinearity/master/doc/CheckImgLinearityCR2.png)
 
 # TIPS/TRICKS:
 Convert a raw image into another format by changing the colorspace and keeping the linearity :  
