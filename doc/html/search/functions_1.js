@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['background',['background',['../classQCustomPlot.html#a4643ddc8249cc4f51725650677c2b779',1,'QCustomPlot::background()'],['../classQCPAxisRect.html#a0daa1dadd2a62dbfa37b7f742edd0059',1,'QCPAxisRect::background()']]],
+  ['backgroundcolor',['backgroundColor',['../classColorSwatchMask.html#aed564b41b39771a61c3791648fae4a8a',1,'ColorSwatchMask::backgroundColor(const QColor &amp;color)'],['../classColorSwatchMask.html#abfc7cb1273dca99b419c9ae22f84b048',1,'ColorSwatchMask::backgroundColor() const ']]],
+  ['backgroundscaled',['backgroundScaled',['../classQCustomPlot.html#af9a6e0fe88e4b8ae5504ee9646abb121',1,'QCustomPlot::backgroundScaled()'],['../classQCPAxisRect.html#a67c18777b88fe9c81dee3dd2b5f50e5c',1,'QCPAxisRect::backgroundScaled()']]],
+  ['backgroundscaledmode',['backgroundScaledMode',['../classQCustomPlot.html#a3394512baf54fbcdc7613ac44a07c3b6',1,'QCustomPlot::backgroundScaledMode()'],['../classQCPAxisRect.html#a3d0f42d6be11a0b3d4576402a2b0032d',1,'QCPAxisRect::backgroundScaledMode()']]],
+  ['barabove',['barAbove',['../classQCPBars.html#a9ca48a6577586825d85bdc1fbf410803',1,'QCPBars']]],
+  ['barbelow',['barBelow',['../classQCPBars.html#a2c46a686cbad95f180ca3c2e88263961',1,'QCPBars']]],
+  ['bars',['bars',['../classQCPBarsGroup.html#a7c72ed1f8cd962c93b8c42ab96cd91ec',1,'QCPBarsGroup::bars() const '],['../classQCPBarsGroup.html#a72d022790b7c93151c95c28eefaf51b4',1,'QCPBarsGroup::bars(int index) const ']]],
+  ['barsgroup',['barsGroup',['../classQCPBars.html#a6d6b2b17619a0ba9c7a88bb2b90fc178',1,'QCPBars']]],
+  ['barwidth',['barWidth',['../classQCPColorScale.html#a0de546f12105cf8bcb00ce60366d3a3d',1,'QCPColorScale']]],
+  ['baselog',['baseLog',['../classQCPAxis.html#a1385765db2419ee5fb5505a6cf9130fb',1,'QCPAxis']]],
+  ['basepen',['basePen',['../classQCPAxis.html#a4f6a7cd46fb104b1dad93e29cc78fe74',1,'QCPAxis']]],
+  ['basepow',['basePow',['../classQCPAxis.html#a97d69f021a05126fcb978d0aefea47b8',1,'QCPAxis']]],
+  ['basevalue',['baseValue',['../classQCPBars.html#a3c8686a74396883fd1da87b2e325b043',1,'QCPBars']]],
+  ['beforereplot',['beforeReplot',['../classQCustomPlot.html#a0cd30e29b73efd6afe096e44bc5956f5',1,'QCustomPlot']]],
+  ['begin',['begin',['../classQCPPainter.html#a0a41146ccd619dceab6e25ec7b46b044',1,'QCPPainter']]],
+  ['borderpen',['borderPen',['../classQCPLegend.html#a8ffd92df86ddf43696d95f04a20e3226',1,'QCPLegend']]],
+  ['bottom',['bottom',['../classQCPAxisRect.html#af2b5982ebe7e6f781b9bf1cc371a60d8',1,'QCPAxisRect']]],
+  ['bottomleft',['bottomLeft',['../classQCPAxisRect.html#a724b0333971ea6a338f0dbd814dc97ae',1,'QCPAxisRect']]],
+  ['bottomright',['bottomRight',['../classQCPAxisRect.html#a49ea3c7dff834b47e266cbf3d79f78b9',1,'QCPAxisRect']]],
+  ['boundingdistance',['boundingDistance',['../classQCPLineEnding.html#a586b45cf738881a70119e353dc1ed59c',1,'QCPLineEnding']]],
+  ['bracketdataslot',['bracketDataSlot',['../classMainWindow.html#a7182546ffd2e2acf50e0905501571c45',1,'MainWindow']]],
+  ['brush',['brush',['../classQCPScatterStyle.html#a46bf481d84bfa31b287dd43a3bf86d37',1,'QCPScatterStyle::brush()'],['../classQCPAbstractPlottable.html#aa74cdceb9c7286ef116fbfa58e0326e7',1,'QCPAbstractPlottable::brush()'],['../classQCPLegend.html#a7e5d2766e7d724f399022be8a4e8a2cb',1,'QCPLegend::brush()'],['../classQCPItemRect.html#a03d2d26ffcac78b25b8e90915f9c4abe',1,'QCPItemRect::brush()'],['../classQCPItemText.html#a38b981dfacb703efa8e27346eebcb5a2',1,'QCPItemText::brush()'],['../classQCPItemEllipse.html#ac012e4fd59fdb1afb6554937bae8f7e1',1,'QCPItemEllipse::brush()'],['../classQCPItemTracer.html#af07527750cfb6afc3c0ba4bec012011f',1,'QCPItemTracer::brush()']]],
+  ['brushnegative',['brushNegative',['../classQCPFinancial.html#a91e09b31ce341c17b917e77fdc68d84e',1,'QCPFinancial']]],
+  ['brushpositive',['brushPositive',['../classQCPFinancial.html#acb69536a334fae7fc31b2bfd4eca81f5',1,'QCPFinancial']]]
+];

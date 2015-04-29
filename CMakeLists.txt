@@ -254,3 +254,6 @@ target_link_libraries(${PROJECT_NAME}
 if(TARGET qcustomplot)
     add_dependencies(${PROJECT_NAME} qcustomplot)
 endif()
+
+## handle documentation
+ADD_SUBDIRECTORY(doc)

@@ -35,3 +35,16 @@ do
 done
  
 echo -e $output
+
+
+## How to remove bigest data which should not be tracked by git anymore
+## 2 ways to do it :
+## 1- It's store on a branch : remove branch localy and on the remote => Then new clone should not get those heavy files :
+## 
+##     git push origin --delete <branchName>
+## 
+## 2- track all files you want to delete and remove them from every commit history on the remote => .git will completly and definitively lost those files :
+## 
+##     git filter-branch --index-filter "git rm -rf --cached --ignore-unmatch <folderPathOrFilePath>" --prune-empty -- --all
+##     git filter-branch -f --tree-filter "rm -rf <folderPathOrFilePath>" --prune-empty -- --all
+##     git push --force
