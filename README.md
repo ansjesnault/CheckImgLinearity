@@ -26,3 +26,8 @@ see also Microsoft Camera Codec Pack :
  * Win8: http://www.microsoft.com/fr-fr/download/confirmation.aspx?id=34871
  * Win8.1:http://www.microsoft.com/fr-fr/download/details.aspx?id=40310
  * see also : http://cr2viewer.com/download.aspx
+ 
+ 
+Last doc update :
+
+2015-04-29_0740 PM
