@@ -27,6 +27,7 @@ see also Microsoft Camera Codec Pack :
  * Win8.1:http://www.microsoft.com/fr-fr/download/details.aspx?id=40310
  * see also : http://cr2viewer.com/download.aspx
  
+![ScreenShot](https://raw.github.com/ejerome/CheckImgLinearity/master/LICENSE.png)
  
 Last doc update :
 
